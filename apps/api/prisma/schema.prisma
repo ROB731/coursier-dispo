@@ -1,0 +1,234 @@
+// DISPO-COURSIER — Schéma de données
+// Voir docs/04-architecture.md pour le modèle conceptuel et docs/05-database.md
+// pour la stratégie d'index, de seed et de migration.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------- Enums ----------
+
+enum RoleUtilisateur {
+  SUPER_ADMIN
+  DIRECTEUR
+  GERANTE
+}
+
+enum TypeContrat {
+  CDI
+  CDD
+  STAGIAIRE
+  PRESTATAIRE
+}
+
+enum JourSemaine {
+  LUN
+  MAR
+  MER
+  JEU
+  VEN
+  SAM
+  DIM
+}
+
+enum TypeEvenement {
+  ENTREE
+  SORTIE
+  ANNULATION
+  CLOTURE_AUTO
+}
+
+enum SourceEvenement {
+  BORNE
+  COMPTE
+  SYSTEME
+}
+
+enum TypeNotification {
+  COURSIER_ARRIVE
+  AUCUN_DISPONIBLE
+}
+
+// ---------- Comptes ----------
+
+model Utilisateur {
+  id                  String            @id @default(uuid())
+  identifiant         String            @unique
+  motDePasseHash      String
+  role                RoleUtilisateur
+  nomComplet          String
+  telephone           String?
+  email               String?
+  siteParDefaut       Site?             @relation("UtilisateurSiteParDefaut", fields: [siteParDefautId], references: [id])
+  siteParDefautId     String?
+  actif               Boolean           @default(true)
+  derniereConnexionAt DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  evenementsAnnulesPar Evenement[]      @relation("EvenementCreePar")
+  pushSubscriptions    PushSubscription[]
+  notifications        Notification[]
+
+  @@index([role])
+}
+
+// ---------- Sites & Bornes ----------
+
+model Site {
+  id               String   @id @default(uuid())
+  nom              String
+  adresse          String?
+  ville            String?
+  estSitePrincipal Boolean  @default(false)
+  actif            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  coursierSites         CoursierSite[]
+  terminaux             Terminal[]
+  evenements             Evenement[]
+  utilisateursParDefaut  Utilisateur[]  @relation("UtilisateurSiteParDefaut")
+
+  @@index([actif])
+}
+
+model Terminal {
+  id                 String    @id @default(uuid())
+  nom                String
+  site               Site      @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  siteId             String
+  derniereActiviteAt DateTime?
+  actif              Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+
+  evenements         Evenement[]
+
+  @@index([siteId])
+}
+
+// ---------- Coursiers ----------
+
+model Coursier {
+  id                      String        @id @default(uuid())
+  code                    String        @unique
+  photoUrl                String
+  prenom                  String
+  nom                     String
+  telephone               String?
+  email                   String?
+  dateNaissance           DateTime?     @db.Date
+  adresse                 String?
+  typeContrat             TypeContrat?
+  dateEmbauche            DateTime?     @db.Date
+  contactUrgenceNom       String?
+  contactUrgenceTelephone String?
+  statutActif             Boolean       @default(true)
+  profilHoraire           ProfilHoraire @relation(fields: [profilHoraireId], references: [id], onDelete: Restrict)
+  profilHoraireId         String
+  multiSiteActive         Boolean       @default(false)
+  notes                   String?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  coursierSites           CoursierSite[]
+  evenements              Evenement[]
+  notifications           Notification[]
+
+  @@index([statutActif])
+  @@index([profilHoraireId])
+}
+
+model CoursierSite {
+  id               String   @id @default(uuid())
+  coursier         Coursier @relation(fields: [coursierId], references: [id], onDelete: Cascade)
+  coursierId       String
+  site             Site     @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  siteId           String
+  estSitePrincipal Boolean  @default(true)
+  actif            Boolean  @default(true)
+
+  // Un coursier n'a qu'une ligne par site ; le nombre de sites simultanés
+  // actifs est contraint au niveau applicatif par Coursier.multiSiteActive.
+  @@unique([coursierId, siteId])
+  @@index([siteId])
+}
+
+model ProfilHoraire {
+  id               String        @id @default(uuid())
+  nom              String
+  heureDebut       String // format "HH:mm", validé applicativement
+  heureFin         String
+  joursApplicables JourSemaine[]
+  estParDefaut     Boolean       @default(false)
+  actif            Boolean       @default(true)
+
+  coursiers        Coursier[]
+}
+
+// ---------- Historique (append-only) ----------
+
+model Evenement {
+  id                   String          @id @default(uuid())
+  coursier             Coursier        @relation(fields: [coursierId], references: [id], onDelete: Restrict)
+  coursierId           String
+  site                 Site            @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  siteId               String
+  type                 TypeEvenement
+  // Renseigné uniquement si type = ANNULATION : pointe vers l'événement annulé.
+  evenementAnnule       Evenement?      @relation("Annulation", fields: [evenementAnnuleId], references: [id])
+  evenementAnnuleId     String?         @unique
+  annulePar             Evenement?      @relation("Annulation")
+  source               SourceEvenement
+  terminal             Terminal?       @relation(fields: [terminalId], references: [id], onDelete: SetNull)
+  terminalId           String?
+  creeParUtilisateur   Utilisateur?    @relation("EvenementCreePar", fields: [creeParUtilisateurId], references: [id], onDelete: SetNull)
+  creeParUtilisateurId String?
+  horodatage           DateTime
+  createdAt            DateTime        @default(now())
+
+  @@index([coursierId, horodatage])
+  @@index([siteId, horodatage])
+  @@index([type])
+}
+
+// ---------- Notifications ----------
+
+model PushSubscription {
+  id            String      @id @default(uuid())
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  utilisateurId String
+  endpoint      String      @unique
+  p256dh        String
+  auth          String
+  createdAt     DateTime    @default(now())
+}
+
+model Notification {
+  id            String            @id @default(uuid())
+  utilisateur   Utilisateur       @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  utilisateurId String
+  type          TypeNotification
+  coursier      Coursier?         @relation(fields: [coursierId], references: [id], onDelete: SetNull)
+  coursierId    String?
+  message       String
+  lu            Boolean           @default(false)
+  envoyeAt      DateTime          @default(now())
+
+  @@index([utilisateurId, lu])
+}
+
+// ---------- Paramètres globaux (ligne unique) ----------
+
+model ParametresApplication {
+  id                            String  @id @default(uuid())
+  modeMultiSite                 Boolean @default(false)
+  fenetreAnnulationBorneMinutes Int     @default(2)
+  intervallePollingSecondes     Int     @default(7)
+  clotureAutoActive             Boolean @default(true)
+}

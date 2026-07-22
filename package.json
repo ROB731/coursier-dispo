@@ -1,0 +1,12 @@
+{
+  "name": "dispo-coursier",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=@dispo-coursier/api",
+    "dev:web": "npm run dev --workspace=@dispo-coursier/web",
+    "build:api": "npm run build --workspace=@dispo-coursier/api",
+    "build:web": "npm run build --workspace=@dispo-coursier/web",
+    "typecheck": "npm run typecheck --workspace=@dispo-coursier/api && npm run typecheck --workspace=@dispo-coursier/web"
+  }
+}
