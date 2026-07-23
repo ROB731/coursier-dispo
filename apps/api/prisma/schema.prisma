@@ -1,6 +1,14 @@
 // DISPO-COURSIER — Schéma de données
 // Voir docs/04-architecture.md pour le modèle conceptuel et docs/05-database.md
 // pour la stratégie d'index, de seed et de migration.
+//
+// Modèle multi-entreprises (docs/06-multi-entreprise.md) : Entreprise est la
+// frontière d'isolation des données (tenant). Site, ProfilHoraire et
+// ParametresApplication sont rattachés à une Entreprise. Un Utilisateur
+// SUPER_ADMIN n'est rattaché à aucune entreprise (accès plateforme). Un
+// DIRECTEUR est rattaché à une ou plusieurs entreprises (DirecteurEntreprise).
+// Un GERANTE est rattaché soit directement à une entreprise (entrepriseId),
+// soit à un directeur (directeurId) dont il hérite alors le périmètre.
 
 datasource db {
   provider = "postgresql"
@@ -26,16 +34,6 @@ enum TypeContrat {
   PRESTATAIRE
 }
 
-enum JourSemaine {
-  LUN
-  MAR
-  MER
-  JEU
-  VEN
-  SAM
-  DIM
-}
-
 enum TypeEvenement {
   ENTREE
   SORTIE
@@ -54,6 +52,39 @@ enum TypeNotification {
   AUCUN_DISPONIBLE
 }
 
+// ---------- Entreprises (tenants) ----------
+
+model Entreprise {
+  id        String   @id @default(uuid())
+  nom       String
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sites                Site[]
+  profilsHoraires      ProfilHoraire[]
+  parametres           ParametresApplication?
+  utilisateursDirects  Utilisateur[]         @relation("UtilisateurEntreprise")
+  directeurEntreprises DirecteurEntreprise[]
+  journalActivite      JournalActivite[]
+
+  @@index([actif])
+}
+
+// Relation many-to-many : un Directeur peut être rattaché à plusieurs
+// entreprises ; une entreprise peut avoir plusieurs directeurs.
+model DirecteurEntreprise {
+  id           String      @id @default(uuid())
+  directeur    Utilisateur @relation(fields: [directeurId], references: [id], onDelete: Cascade)
+  directeurId  String
+  entreprise   Entreprise  @relation(fields: [entrepriseId], references: [id], onDelete: Cascade)
+  entrepriseId String
+  createdAt    DateTime    @default(now())
+
+  @@unique([directeurId, entrepriseId])
+  @@index([entrepriseId])
+}
+
 // ---------- Comptes ----------
 
 model Utilisateur {
@@ -66,6 +97,19 @@ model Utilisateur {
   email               String?
   siteParDefaut       Site?             @relation("UtilisateurSiteParDefaut", fields: [siteParDefautId], references: [id])
   siteParDefautId     String?
+
+  // GERANTE uniquement : rattachement direct à une entreprise. Alternative à directeurId.
+  entreprise          Entreprise?       @relation("UtilisateurEntreprise", fields: [entrepriseId], references: [id])
+  entrepriseId        String?
+
+  // GERANTE uniquement : rattachement à un directeur, dont le périmètre d'entreprises est hérité.
+  directeur           Utilisateur?      @relation("GeranteDirecteur", fields: [directeurId], references: [id])
+  directeurId         String?
+  gerantes            Utilisateur[]     @relation("GeranteDirecteur")
+
+  // DIRECTEUR uniquement : entreprises supervisées.
+  directeurEntreprises DirecteurEntreprise[]
+
   actif               Boolean           @default(true)
   derniereConnexionAt DateTime?
   createdAt           DateTime          @default(now())
@@ -74,21 +118,44 @@ model Utilisateur {
   evenementsAnnulesPar Evenement[]      @relation("EvenementCreePar")
   pushSubscriptions    PushSubscription[]
   notifications        Notification[]
+  journalActivite      JournalActivite[]
 
   @@index([role])
+  @@index([entrepriseId])
+  @@index([directeurId])
+}
+
+// ---------- Journal d'activité (audit des actions de gestion) ----------
+
+model JournalActivite {
+  id             String       @id @default(uuid())
+  utilisateur    Utilisateur? @relation(fields: [utilisateurId], references: [id], onDelete: SetNull)
+  utilisateurId  String?
+  nomUtilisateur String
+  action         String
+  cible          String?
+  entreprise     Entreprise?  @relation(fields: [entrepriseId], references: [id], onDelete: SetNull)
+  entrepriseId   String?
+  createdAt      DateTime     @default(now())
+
+  @@index([utilisateurId, createdAt])
+  @@index([entrepriseId, createdAt])
+  @@index([createdAt])
 }
 
 // ---------- Sites & Bornes ----------
 
 model Site {
-  id               String   @id @default(uuid())
+  id               String     @id @default(uuid())
+  entreprise       Entreprise @relation(fields: [entrepriseId], references: [id], onDelete: Restrict)
+  entrepriseId     String
   nom              String
   adresse          String?
   ville            String?
-  estSitePrincipal Boolean  @default(false)
-  actif            Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  estSitePrincipal Boolean    @default(false)
+  actif            Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   coursierSites         CoursierSite[]
   terminaux             Terminal[]
@@ -96,6 +163,7 @@ model Site {
   utilisateursParDefaut  Utilisateur[]  @relation("UtilisateurSiteParDefaut")
 
   @@index([actif])
+  @@index([entrepriseId])
 }
 
 model Terminal {
@@ -159,16 +227,24 @@ model CoursierSite {
   @@index([siteId])
 }
 
+// horaires : { "LUN": {"debut":"08:00","fin":"17:30"}, "SAM": {"debut":"08:00","fin":"13:00"}, ... }
+// Une clé absente = jour non travaillé. Permet des horaires différents le
+// week-end (samedi/dimanche) du reste de la semaine.
+// horaires : { "LUN": {"debut":"08:00","fin":"17:30"}, "SAM": {"debut":"08:00","fin":"13:00"}, ... }
+// Une clé absente = jour non travaillé. Permet des horaires différents le
+// week-end (samedi/dimanche) du reste de la semaine.
 model ProfilHoraire {
-  id               String        @id @default(uuid())
-  nom              String
-  heureDebut       String // format "HH:mm", validé applicativement
-  heureFin         String
-  joursApplicables JourSemaine[]
-  estParDefaut     Boolean       @default(false)
-  actif            Boolean       @default(true)
+  id           String     @id @default(uuid())
+  entreprise   Entreprise @relation(fields: [entrepriseId], references: [id], onDelete: Restrict)
+  entrepriseId String
+  nom          String
+  horaires     Json
+  estParDefaut Boolean    @default(false)
+  actif        Boolean    @default(true)
 
-  coursiers        Coursier[]
+  coursiers    Coursier[]
+
+  @@index([entrepriseId])
 }
 
 // ---------- Historique (append-only) ----------
@@ -223,12 +299,14 @@ model Notification {
   @@index([utilisateurId, lu])
 }
 
-// ---------- Paramètres globaux (ligne unique) ----------
+// ---------- Paramètres (un jeu par entreprise) ----------
 
 model ParametresApplication {
-  id                            String  @id @default(uuid())
-  modeMultiSite                 Boolean @default(false)
-  fenetreAnnulationBorneMinutes Int     @default(2)
-  intervallePollingSecondes     Int     @default(7)
-  clotureAutoActive             Boolean @default(true)
+  id                            String      @id @default(uuid())
+  entreprise                    Entreprise @relation(fields: [entrepriseId], references: [id], onDelete: Cascade)
+  entrepriseId                  String     @unique
+  modeMultiSite                 Boolean    @default(false)
+  fenetreAnnulationBorneMinutes Int        @default(2)
+  intervallePollingSecondes     Int        @default(7)
+  clotureAutoActive             Boolean    @default(true)
 }

@@ -24,7 +24,12 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       throw new UnauthorizedError();
     }
 
-    req.utilisateur = { id: utilisateur.id, role: utilisateur.role, identifiant: utilisateur.identifiant };
+    req.utilisateur = {
+      id: utilisateur.id,
+      role: utilisateur.role,
+      identifiant: utilisateur.identifiant,
+      nomComplet: utilisateur.nomComplet,
+    };
     next();
   } catch {
     next(new UnauthorizedError());

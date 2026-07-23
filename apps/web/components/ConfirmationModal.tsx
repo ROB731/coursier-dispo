@@ -20,6 +20,8 @@ export function ConfirmationModal({
   const autre: TypeAction = suggestion === "SORTIE" ? "ENTREE" : "SORTIE";
   const [typeChoisi, setTypeChoisi] = useState<TypeAction>(suggestion);
 
+  const estEntree = typeChoisi === "ENTREE";
+
   return (
     <div
       role="dialog"
@@ -38,7 +40,7 @@ export function ConfirmationModal({
     >
       <div
         className="card"
-        style={{ padding: "1.5rem", maxWidth: 360, width: "100%", textAlign: "center" }}
+        style={{ padding: "1.5rem", maxWidth: "22.5rem", width: "100%", textAlign: "center" }}
         onClick={(e) => e.stopPropagation()}
       >
         <img
@@ -46,17 +48,25 @@ export function ConfirmationModal({
           alt=""
           style={{ width: 120, height: 120, borderRadius: "50%", objectFit: "cover", margin: "0 auto 1rem" }}
         />
-        <h2 style={{ margin: "0 0 1.5rem" }}>
+        <h2 style={{ margin: "0 0 1rem" }}>
           {coursier.prenom} {coursier.nom} — {coursier.code}
         </h2>
 
+        <div style={{ marginBottom: "1.25rem" }}>
+          <span className={`badge badge-lg ${estEntree ? "badge-disponible" : "badge-non-disponible"}`}>
+            <span aria-hidden="true">{estEntree ? "●" : "○"}</span>
+            {estEntree ? "Entrée" : "Sortie"}
+          </span>
+        </div>
+
         <button
-          className="btn btn-primary"
+          className={`btn ${estEntree ? "btn-etat-entree" : "btn-etat-sortie"}`}
           style={{ width: "100%", marginBottom: "0.75rem" }}
           disabled={enCours}
           onClick={() => onConfirm(typeChoisi)}
         >
-          {enCours ? "Enregistrement…" : `Confirmer la ${typeChoisi === "ENTREE" ? "ENTRÉE" : "SORTIE"}`}
+          <span aria-hidden="true">{estEntree ? "●" : "○"}</span>
+          {enCours ? "Enregistrement…" : `Confirmer la ${estEntree ? "ENTRÉE" : "SORTIE"}`}
         </button>
 
         <button

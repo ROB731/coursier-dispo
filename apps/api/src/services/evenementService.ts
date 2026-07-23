@@ -3,10 +3,13 @@ import { prisma } from "../lib/prisma";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../lib/errors";
 import { creerNotificationCoursierArrive, creerNotificationAucunDisponible } from "./notificationService";
 import { getStatutsSite } from "./statutService";
+import { entrepriseAccessible } from "./perimetreService";
 
-async function getParametres() {
-  const parametres = await prisma.parametresApplication.findFirst();
-  if (!parametres) throw new ConflictError("Paramètres de l'application non initialisés — exécutez le seed");
+async function getParametresPourSite(siteId: string) {
+  const site = await prisma.site.findUnique({ where: { id: siteId } });
+  if (!site) throw new NotFoundError("Site introuvable");
+  const parametres = await prisma.parametresApplication.findUnique({ where: { entrepriseId: site.entrepriseId } });
+  if (!parametres) throw new ConflictError("Paramètres de l'entreprise non initialisés");
   return parametres;
 }
 
@@ -54,16 +57,30 @@ interface AnnulerEvenementParams {
   source: SourceEvenement;
   terminalId?: string;
   utilisateurId?: string;
+  entreprisesAccessibles?: string[] | null;
 }
 
-export async function annulerEvenement({ evenementId, source, terminalId, utilisateurId }: AnnulerEvenementParams) {
-  const original = await prisma.evenement.findUnique({ where: { id: evenementId }, include: { annulePar: true } });
+export async function annulerEvenement({
+  evenementId,
+  source,
+  terminalId,
+  utilisateurId,
+  entreprisesAccessibles,
+}: AnnulerEvenementParams) {
+  const original = await prisma.evenement.findUnique({
+    where: { id: evenementId },
+    include: { annulePar: true, site: true },
+  });
   if (!original) throw new NotFoundError("Événement introuvable");
   if (original.type === "ANNULATION") throw new ValidationError("Un événement d'annulation ne peut pas être annulé");
   if (original.annulePar) throw new ConflictError("Cet événement a déjà été annulé");
 
+  if (source === "COMPTE" && !entrepriseAccessible(entreprisesAccessibles ?? null, original.site.entrepriseId)) {
+    throw new ForbiddenError("Vous ne gérez pas cet événement");
+  }
+
   if (source === "BORNE") {
-    const parametres = await getParametres();
+    const parametres = await getParametresPourSite(original.siteId);
     const minutesEcoulees = (Date.now() - original.horodatage.getTime()) / 60000;
     if (minutesEcoulees > parametres.fenetreAnnulationBorneMinutes) {
       throw new ForbiddenError(
@@ -95,21 +112,42 @@ export async function annulerEvenement({ evenementId, source, terminalId, utilis
 interface HistoriqueFiltres {
   coursierId?: string;
   siteId?: string;
+  utilisateurId?: string;
+  recherche?: string;
   depuis?: Date;
   jusqua?: Date;
 }
 
-export async function getHistorique(filtres: HistoriqueFiltres) {
+export async function getHistorique(filtres: HistoriqueFiltres, entreprisesAccessibles: string[] | null = null) {
   return prisma.evenement.findMany({
     where: {
       coursierId: filtres.coursierId,
       siteId: filtres.siteId,
+      creeParUtilisateurId: filtres.utilisateurId,
+      site: entreprisesAccessibles === null ? undefined : { entrepriseId: { in: entreprisesAccessibles } },
       horodatage: {
         gte: filtres.depuis,
         lte: filtres.jusqua,
       },
+      ...(filtres.recherche
+        ? {
+            coursier: {
+              OR: [
+                { nom: { contains: filtres.recherche, mode: "insensitive" } },
+                { prenom: { contains: filtres.recherche, mode: "insensitive" } },
+                { code: { contains: filtres.recherche, mode: "insensitive" } },
+              ],
+            },
+          }
+        : {}),
     },
-    include: { coursier: true, site: true, terminal: true, creeParUtilisateur: true, evenementAnnule: true },
+    include: {
+      coursier: true,
+      site: true,
+      terminal: true,
+      creeParUtilisateur: { select: { id: true, nomComplet: true } },
+      evenementAnnule: true,
+    },
     orderBy: { horodatage: "desc" },
     take: 500,
   });

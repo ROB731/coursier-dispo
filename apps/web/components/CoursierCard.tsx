@@ -1,4 +1,5 @@
 import { CoursierBorne } from "@/lib/types";
+import { StatutBadge } from "./StatutBadge";
 
 export function CoursierCard({ coursier, onSelect }: { coursier: CoursierBorne; onSelect: (c: CoursierBorne) => void }) {
   const disponible = coursier.statut === "DISPONIBLE";
@@ -24,15 +25,7 @@ export function CoursierCard({ coursier, onSelect }: { coursier: CoursierBorne; 
         alt=""
         style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", background: "var(--color-border)" }}
       />
-      <span
-        aria-hidden="true"
-        style={{
-          fontSize: "1.1rem",
-          color: disponible ? "var(--color-disponible)" : "var(--color-non-disponible)",
-        }}
-      >
-        {disponible ? "●" : "○"}
-      </span>
+      <StatutBadge statut={coursier.statut} contexte="borne" />
       <strong style={{ fontSize: "1.1rem" }}>{coursier.code}</strong>
       <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", textAlign: "center" }}>
         {coursier.prenom} {coursier.nom}

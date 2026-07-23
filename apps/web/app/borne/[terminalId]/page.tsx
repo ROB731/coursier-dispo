@@ -5,6 +5,7 @@ import { api, ApiError } from "@/lib/apiClient";
 import { CoursierBorne } from "@/lib/types";
 import { CoursierCard } from "@/components/CoursierCard";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { RecapDetailsModal } from "@/components/RecapDetailsModal";
 import { Toast } from "@/components/Toast";
 
 interface ReponseBorne {
@@ -24,6 +25,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; evenementId: string } | null>(null);
+  const [detailsOuvert, setDetailsOuvert] = useState(false);
 
   const chargerCoursiers = useCallback(async () => {
     try {
@@ -32,7 +34,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       setCoursiers(data.coursiers);
       setErreur(null);
     } catch (err) {
-      setErreur(err instanceof ApiError ? err.message : "Borne indisponible — vérifiez la connexion");
+      setErreur(err instanceof ApiError ? err.message : "Point indisponible — vérifiez la connexion");
     }
   }, [terminalId]);
 
@@ -47,6 +49,8 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     const timeout = setTimeout(() => setToast(null), DUREE_TOAST_MS);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  const disponibles = useMemo(() => coursiers.filter((c) => c.statut === "DISPONIBLE").length, [coursiers]);
 
   const coursiersFiltres = useMemo(() => {
     const q = recherche.trim().toLowerCase();
@@ -89,34 +93,56 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   }
 
   return (
-    <main>
-      <div className="top-bar">
-        <strong>DISPO-COURSIER · {nomBorne || "Borne"}</strong>
+    <div className="app-shell">
+      <button
+        type="button"
+        onClick={() => setDetailsOuvert(true)}
+        style={{
+          display: "block",
+          width: "100%",
+          textAlign: "center",
+          padding: "0.5rem",
+          background: "var(--color-primary)",
+          color: "var(--color-primary-contrast)",
+          fontWeight: 700,
+          fontSize: "0.9rem",
+        }}
+      >
+        {disponibles} disponible{disponibles > 1 ? "s" : ""} sur {coursiers.length} · voir le détail
+      </button>
+
+      <div className="top-bar" style={{ padding: "0.5rem 1.25rem" }}>
+        <strong style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--color-text-muted)" }}>
+          DISPO-COURSIER · {nomBorne || "À la porte"}
+        </strong>
         <input
           placeholder="Rechercher…"
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
-          style={{ maxWidth: 220 }}
+          style={{ maxWidth: "13.75rem" }}
         />
       </div>
 
-      {erreur && <p className="alert-banner warning">{erreur}</p>}
+      {/* Seule cette zone défile — l'en-tête (récap + recherche) reste toujours visible */}
+      <div className="scroll-region">
+        {erreur && <p className="alert-banner warning">{erreur}</p>}
 
-      {coursiersFiltres.length === 0 && !erreur && (
-        <p className="container">Aucun coursier enregistré sur ce site — contactez votre administrateur.</p>
-      )}
+        {coursiersFiltres.length === 0 && !erreur && (
+          <p className="container">Aucun coursier enregistré sur ce site — contactez votre administrateur.</p>
+        )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-          gap: "1rem",
-          padding: "1rem",
-        }}
-      >
-        {coursiersFiltres.map((c) => (
-          <CoursierCard key={c.id} coursier={c} onSelect={setSelection} />
-        ))}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gap: "1rem",
+            padding: "1rem",
+          }}
+        >
+          {coursiersFiltres.map((c) => (
+            <CoursierCard key={c.id} coursier={c} onSelect={setSelection} />
+          ))}
+        </div>
       </div>
 
       {selection && (
@@ -129,6 +155,8 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       )}
 
       {toast && <Toast message={toast.message} onUndo={annulerDerniereAction} />}
-    </main>
+
+      {detailsOuvert && <RecapDetailsModal coursiers={coursiers} onClose={() => setDetailsOuvert(false)} />}
+    </div>
   );
 }

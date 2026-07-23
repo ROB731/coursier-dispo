@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireAuth } from "../middleware/auth";
 import { requireRole } from "../middleware/rbac";
 import { validateBody } from "../middleware/validate";
+import { chargerPerimetre } from "../middleware/perimetre";
+import { journaliser } from "../middleware/journalActivite";
 import {
   creerCoursier,
   desactiverCoursier,
@@ -36,33 +38,59 @@ const creerCoursierSchema = z.object({
 
 const modifierCoursierSchema = creerCoursierSchema.omit({ siteId: true }).partial();
 
-coursiersRouter.use(requireAuth);
+coursiersRouter.use(requireAuth, chargerPerimetre);
 
 coursiersRouter.get("/", requireRole("SUPER_ADMIN", "DIRECTEUR", "GERANTE"), async (req, res) => {
-  const { siteId, actifSeulement } = req.query;
-  const coursiers = await listerCoursiers({
-    siteId: typeof siteId === "string" ? siteId : undefined,
-    actifSeulement: actifSeulement === "true",
-  });
+  const { siteId, actifSeulement, entrepriseId } = req.query;
+  const coursiers = await listerCoursiers(
+    {
+      siteId: typeof siteId === "string" ? siteId : undefined,
+      actifSeulement: actifSeulement === "true",
+      entrepriseId: typeof entrepriseId === "string" ? entrepriseId : undefined,
+    },
+    req.entreprisesAccessibles ?? null
+  );
   res.json(coursiers);
 });
 
 coursiersRouter.get("/:id", requireRole("SUPER_ADMIN", "DIRECTEUR", "GERANTE"), async (req, res) => {
-  res.json(await getCoursierParId(req.params.id));
+  res.json(await getCoursierParId(req.params.id, req.entreprisesAccessibles ?? null));
 });
 
-coursiersRouter.post("/", requireRole("SUPER_ADMIN"), validateBody(creerCoursierSchema), async (req, res) => {
-  res.status(201).json(await creerCoursier(req.body));
-});
+coursiersRouter.post(
+  "/",
+  requireRole("SUPER_ADMIN", "DIRECTEUR", "GERANTE"),
+  validateBody(creerCoursierSchema),
+  journaliser("Création d'un coursier", (req) => req.body?.code),
+  async (req, res) => {
+    res.status(201).json(await creerCoursier(req.body, req.entreprisesAccessibles ?? null));
+  }
+);
 
-coursiersRouter.patch("/:id", requireRole("SUPER_ADMIN"), validateBody(modifierCoursierSchema), async (req, res) => {
-  res.json(await modifierCoursier(req.params.id, req.body));
-});
+coursiersRouter.patch(
+  "/:id",
+  requireRole("SUPER_ADMIN", "DIRECTEUR", "GERANTE"),
+  validateBody(modifierCoursierSchema),
+  journaliser("Modification d'un coursier", (req) => req.body?.code ?? req.params.id),
+  async (req, res) => {
+    res.json(await modifierCoursier(req.params.id, req.body, req.entreprisesAccessibles ?? null));
+  }
+);
 
-coursiersRouter.post("/:id/desactiver", requireRole("SUPER_ADMIN"), async (req, res) => {
-  res.json(await desactiverCoursier(req.params.id));
-});
+coursiersRouter.post(
+  "/:id/desactiver",
+  requireRole("SUPER_ADMIN", "DIRECTEUR", "GERANTE"),
+  journaliser("Désactivation d'un coursier", (req) => req.params.id),
+  async (req, res) => {
+    res.json(await desactiverCoursier(req.params.id, req.entreprisesAccessibles ?? null));
+  }
+);
 
-coursiersRouter.post("/:id/reactiver", requireRole("SUPER_ADMIN"), async (req, res) => {
-  res.json(await reactiverCoursier(req.params.id));
-});
+coursiersRouter.post(
+  "/:id/reactiver",
+  requireRole("SUPER_ADMIN", "DIRECTEUR", "GERANTE"),
+  journaliser("Réactivation d'un coursier", (req) => req.params.id),
+  async (req, res) => {
+    res.json(await reactiverCoursier(req.params.id, req.entreprisesAccessibles ?? null));
+  }
+);

@@ -1,5 +1,6 @@
-import { JourSemaine, ProfilHoraire } from "@prisma/client";
+import { ProfilHoraire } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { horairesDuJour, JourSemaine } from "../lib/horaires";
 
 export type Statut = "DISPONIBLE" | "NON_DISPONIBLE";
 
@@ -11,10 +12,11 @@ function estMemeJourCalendaire(a: Date, b: Date): boolean {
 
 function estDansPlageHoraire(profil: ProfilHoraire, maintenant: Date): boolean {
   const jourActuel = JOURS_PAR_INDEX_JS[maintenant.getDay()];
-  if (!profil.joursApplicables.includes(jourActuel)) return false;
+  const plage = horairesDuJour(profil.horaires, jourActuel);
+  if (!plage) return false;
 
-  const [heureDebut, minuteDebut] = profil.heureDebut.split(":").map(Number);
-  const [heureFin, minuteFin] = profil.heureFin.split(":").map(Number);
+  const [heureDebut, minuteDebut] = plage.debut.split(":").map(Number);
+  const [heureFin, minuteFin] = plage.fin.split(":").map(Number);
   const minutesActuelles = maintenant.getHours() * 60 + maintenant.getMinutes();
 
   return minutesActuelles >= heureDebut * 60 + minuteDebut && minutesActuelles <= heureFin * 60 + minuteFin;

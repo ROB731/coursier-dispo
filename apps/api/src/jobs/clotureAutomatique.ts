@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { JourSemaine } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { horairesDuJour, JourSemaine } from "../lib/horaires";
 
 const JOURS_PAR_INDEX_JS: JourSemaine[] = ["DIM", "LUN", "MAR", "MER", "JEU", "VEN", "SAM"];
 
@@ -15,15 +15,15 @@ function formatHHmm(date: Date): string {
  * uniquement de ce job (cf. statutService.calculerStatut).
  */
 export async function executerClotureAutomatique(maintenant: Date = new Date()) {
-  const parametres = await prisma.parametresApplication.findFirst();
-  if (!parametres?.clotureAutoActive) return;
-
   const heureActuelle = formatHHmm(maintenant);
   const jourActuel = JOURS_PAR_INDEX_JS[maintenant.getDay()];
 
-  const profils = await prisma.profilHoraire.findMany({
-    where: { actif: true, heureFin: heureActuelle, joursApplicables: { has: jourActuel } },
+  // Chaque entreprise décide indépendamment d'activer la clôture automatique.
+  // Les horaires (par jour) sont en JSON : on filtre en mémoire plutôt qu'en SQL.
+  const profilsActifs = await prisma.profilHoraire.findMany({
+    where: { actif: true, entreprise: { parametres: { clotureAutoActive: true } } },
   });
+  const profils = profilsActifs.filter((p) => horairesDuJour(p.horaires, jourActuel)?.fin === heureActuelle);
 
   for (const profil of profils) {
     const coursiers = await prisma.coursier.findMany({

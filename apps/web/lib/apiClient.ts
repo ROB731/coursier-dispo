@@ -38,3 +38,27 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
 };
+
+export async function uploaderPhoto(fichier: File): Promise<{ url: string }> {
+  const formulaire = new FormData();
+  formulaire.append("photo", fichier);
+
+  const res = await fetch(`${API_URL}/api/uploads/photo`, {
+    method: "POST",
+    credentials: "include",
+    body: formulaire,
+  });
+
+  if (!res.ok) {
+    let message = `Erreur ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // réponse sans corps JSON exploitable
+    }
+    throw new ApiError(res.status, message);
+  }
+
+  return res.json();
+}

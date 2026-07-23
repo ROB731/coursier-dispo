@@ -2,11 +2,19 @@ import { prisma } from "../lib/prisma";
 import { envoyerPush } from "../lib/webPush";
 
 async function destinatairesDuSite(siteId: string) {
+  const site = await prisma.site.findUnique({ where: { id: siteId } });
+  if (!site) return [];
+
+  // Reflète exactement la logique de perimetreService.getEntreprisesAccessibles :
+  // un GERANTE hérite du périmètre de son directeur s'il n'a pas de rattachement direct.
   return prisma.utilisateur.findMany({
     where: {
       actif: true,
-      role: { in: ["GERANTE", "DIRECTEUR"] },
-      OR: [{ siteParDefautId: null }, { siteParDefautId: siteId }],
+      OR: [
+        { role: "GERANTE", entrepriseId: site.entrepriseId },
+        { role: "GERANTE", directeur: { directeurEntreprises: { some: { entrepriseId: site.entrepriseId } } } },
+        { role: "DIRECTEUR", directeurEntreprises: { some: { entrepriseId: site.entrepriseId } } },
+      ],
     },
     include: { pushSubscriptions: true },
   });
