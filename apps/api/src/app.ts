@@ -66,3 +66,8 @@ app.use("/api/presences-employes", presencesEmployesRouter);
 app.use("/api/cron", cronRouter);
 
 app.use(errorHandler);
+
+// Export par défaut en plus de l'export nommé : la détection "zero-config"
+// de Vercel pour les apps Express repère ce fichier et exige explicitement
+// un export par défaut (sans quoi la racine "/" plante côté Vercel).
+export default app;
