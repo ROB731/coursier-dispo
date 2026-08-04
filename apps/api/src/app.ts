@@ -26,6 +26,10 @@ import { cronRouter } from "./routes/cron.routes";
 
 export const app = express();
 
+// Nécessaire derrière un reverse proxy (Vercel, Render) pour que
+// express-rate-limit identifie correctement les utilisateurs via X-Forwarded-For.
+app.set("trust proxy", 1);
+
 app.use(helmet());
 app.use(cors({ origin: env.FRONTEND_ORIGIN, credentials: true }));
 app.use(cookieParser());
