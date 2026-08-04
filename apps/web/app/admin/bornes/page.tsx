@@ -11,6 +11,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { usePagination } from "@/lib/usePagination";
 import { Pagination } from "@/components/Pagination";
 import { Modal } from "@/components/Modal";
+import { IconArrowRight, IconCheck } from "@/components/icons";
 
 interface Terminal {
   id: string;
@@ -169,11 +170,27 @@ export default function BornesPage() {
                 </div>
               </div>
               <div style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-                <Link href={`/borne/${b.id}`} target="_blank" className="link" style={{ fontSize: "0.85rem", fontWeight: 600 }}>
-                  Ouvrir →
+                <Link
+                  href={`/borne/${b.id}`}
+                  target="_blank"
+                  className="link"
+                  style={{ fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                >
+                  Ouvrir <IconArrowRight size={14} />
                 </Link>
-                <button type="button" className="btn-text" onClick={() => copierLien(b.id)}>
-                  {lienCopie === b.id ? "Lien copié ✓" : "Copier le lien"}
+                <button
+                  type="button"
+                  className="btn-text"
+                  onClick={() => copierLien(b.id)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                >
+                  {lienCopie === b.id ? (
+                    <>
+                      <IconCheck size={14} /> Lien copié
+                    </>
+                  ) : (
+                    "Copier le lien"
+                  )}
                 </button>
               </div>
             </div>
@@ -207,11 +224,27 @@ export default function BornesPage() {
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                      <Link href={`/borne/${b.id}`} target="_blank" className="link" style={{ fontWeight: 600 }}>
-                        Ouvrir →
+                      <Link
+                        href={`/borne/${b.id}`}
+                        target="_blank"
+                        className="link"
+                        style={{ fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                      >
+                        Ouvrir <IconArrowRight size={14} />
                       </Link>
-                      <button type="button" className="btn-text" onClick={() => copierLien(b.id)}>
-                        {lienCopie === b.id ? "Copié ✓" : "Copier"}
+                      <button
+                        type="button"
+                        className="btn-text"
+                        onClick={() => copierLien(b.id)}
+                        style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                      >
+                        {lienCopie === b.id ? (
+                          <>
+                            <IconCheck size={14} /> Copié
+                          </>
+                        ) : (
+                          "Copier"
+                        )}
                       </button>
                     </div>
                   </td>

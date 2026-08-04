@@ -16,7 +16,7 @@ const terminalSchema = z.object({
 
 terminauxRouter.use(requireAuth, chargerPerimetre);
 
-terminauxRouter.get("/", requireRole("SUPER_ADMIN", "DIRECTEUR"), async (req, res) => {
+terminauxRouter.get("/", requireRole("SUPER_ADMIN", "DIRECTEUR", "GERANTE"), async (req, res) => {
   res.json(await listerTerminaux(req.entreprisesAccessibles ?? null));
 });
 
@@ -36,6 +36,11 @@ terminauxRouter.patch(
   validateBody(terminalSchema.partial().extend({ actif: z.boolean().optional() })),
   journaliser("Modification d'une borne", (req) => req.params.id),
   async (req, res) => {
-    res.json(await modifierTerminal(req.params.id, req.body, req.entreprisesAccessibles ?? null));
+    res.json(
+      await modifierTerminal(req.params.id, req.body, req.entreprisesAccessibles ?? null, {
+        id: req.utilisateur!.id,
+        nomComplet: req.utilisateur!.nomComplet,
+      })
+    );
   }
 );

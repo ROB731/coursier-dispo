@@ -5,6 +5,7 @@ import { useUtilisateur } from "@/lib/useUtilisateur";
 import { RequireRole } from "@/components/RequireRole";
 import { TopBar } from "@/components/TopBar";
 import { AdminNav } from "@/components/AdminNav";
+import { IconMenu } from "@/components/icons";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { utilisateur, chargement } = useUtilisateur();
@@ -25,7 +26,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               aria-label="Ouvrir le menu"
               onClick={() => setMenuOuvert(true)}
             >
-              ☰
+              <IconMenu size={20} />
             </button>
           }
         />

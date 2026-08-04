@@ -9,6 +9,8 @@ import { useUtilisateur } from "@/lib/useUtilisateur";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { StatutBadge } from "@/components/StatutBadge";
 import { lireAfficherStatsGestion } from "@/lib/preferencesTableauDeBord";
+import { IconArrowRight, IconBan, IconCheckCircle, IconRefresh, IconUsers } from "@/components/icons";
+import { useToast } from "@/components/ToastProvider";
 
 interface CompteResume {
   id: string;
@@ -62,7 +64,7 @@ function CarteIndicateur({
   couleur,
   fond,
 }: {
-  icone: string;
+  icone: React.ReactNode;
   valeur: number;
   label: string;
   couleur: string;
@@ -91,7 +93,7 @@ function CarteIndicateur({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "1.3rem",
+          color: couleur,
           flexShrink: 0,
         }}
       >
@@ -107,6 +109,7 @@ function CarteIndicateur({
 
 export default function TableauDeBordAdminPage() {
   const { utilisateur } = useUtilisateur();
+  const { showToast } = useToast();
   const [entreprises, setEntreprises] = useState<Entreprise[]>([]);
   const [entrepriseId, setEntrepriseId] = useState("");
   const [coursiers, setCoursiers] = useState<Coursier[]>([]);
@@ -143,13 +146,25 @@ export default function TableauDeBordAdminPage() {
     });
   }, [entrepriseId]);
 
-  useEffect(() => {
+  function chargerStatuts() {
     if (!siteId) {
       setStatuts([]);
       return;
     }
     api.get<StatutCoursier[]>(`/api/statuts/sites/${siteId}`).then(setStatuts);
+  }
+
+  useEffect(() => {
+    chargerStatuts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId]);
+
+  async function reinitialiser(coursierId: string, nomComplet: string) {
+    if (!window.confirm(`Réinitialiser le statut de ${nomComplet} ? Il redeviendra "Non disponible".`)) return;
+    await api.post(`/api/coursiers/${coursierId}/reinitialiser-statut`);
+    showToast("Statut réinitialisé");
+    chargerStatuts();
+  }
 
   const disponibles = statuts.filter((s) => s.statut === "DISPONIBLE");
   const indisponibles = statuts.filter((s) => s.statut !== "DISPONIBLE");
@@ -159,7 +174,7 @@ export default function TableauDeBordAdminPage() {
     <div className="container">
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
         <h1 style={{ margin: 0 }}>
-          Qui est disponible {statuts.length > 0 && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>({statuts.length})</span>}
+          Qui est disponible {statuts.length > 0 && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>({disponibles.length})</span>}
         </h1>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
           {entreprises.length > 1 && (
@@ -176,16 +191,38 @@ export default function TableauDeBordAdminPage() {
               <SearchableSelect options={sites.map((s) => ({ value: s.id, label: s.nom }))} value={siteId} onChange={setSiteId} />
             </div>
           )}
-          <Link href="/app" className="btn-text" style={{ whiteSpace: "nowrap" }}>
-            Vue plein écran →
+          <Link
+            href="/app"
+            className="btn-text"
+            style={{ whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+          >
+            Vue plein écran <IconArrowRight size={14} />
           </Link>
         </div>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", margin: "1rem 0 1.25rem" }}>
-        <CarteIndicateur icone="✅" valeur={disponibles.length} label="Disponibles" couleur="var(--color-disponible)" fond="var(--color-disponible-bg)" />
-        <CarteIndicateur icone="⛔" valeur={indisponibles.length} label="Non disponibles" couleur="var(--color-non-disponible)" fond="var(--color-non-disponible-bg)" />
-        <CarteIndicateur icone="👥" valeur={statuts.length} label="Coursiers concernés" couleur="var(--color-primary)" fond="var(--color-primary-soft)" />
+        <CarteIndicateur
+          icone={<IconCheckCircle size={22} />}
+          valeur={disponibles.length}
+          label="Disponibles"
+          couleur="var(--color-disponible)"
+          fond="var(--color-disponible-bg)"
+        />
+        <CarteIndicateur
+          icone={<IconBan size={22} />}
+          valeur={indisponibles.length}
+          label="Non disponibles"
+          couleur="var(--color-non-disponible)"
+          fond="var(--color-non-disponible-bg)"
+        />
+        <CarteIndicateur
+          icone={<IconUsers size={22} />}
+          valeur={statuts.length}
+          label="Coursiers concernés"
+          couleur="var(--color-primary)"
+          fond="var(--color-primary-soft)"
+        />
       </div>
 
       {statuts.length > 0 && (
@@ -197,26 +234,55 @@ export default function TableauDeBordAdminPage() {
             marginBottom: "1.5rem",
           }}
         >
-          {statuts.map((s) => (
-            <div
-              key={s.coursierId}
-              className="card"
-              style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "1rem 0.75rem", gap: "0.5rem" }}
-            >
-              <img
-                src={s.photoUrl}
-                alt=""
-                style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", background: "var(--color-border)" }}
-              />
-              <div>
-                <strong style={{ display: "block" }}>
-                  {s.prenom} {s.nom}
-                </strong>
-                <span style={{ color: "var(--color-text-muted)", fontSize: "0.82rem" }}>{s.code}</span>
+          {statuts.map((s) => {
+            const journeeTerminee = s.statut !== "DISPONIBLE" && s.journeeTerminee;
+            return (
+              <div
+                key={s.coursierId}
+                className="card"
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                  padding: "1rem 0.75rem",
+                  gap: "0.5rem",
+                  opacity: journeeTerminee ? 0.65 : 1,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn-text"
+                  title="Réinitialiser le statut"
+                  aria-label={`Réinitialiser le statut de ${s.prenom} ${s.nom}`}
+                  onClick={() => reinitialiser(s.coursierId, `${s.prenom} ${s.nom}`)}
+                  style={{ position: "absolute", top: "0.4rem", right: "0.4rem", padding: "0.3rem" }}
+                >
+                  <IconRefresh size={14} />
+                </button>
+                <img
+                  src={s.photoUrl}
+                  alt=""
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    background: "var(--color-border)",
+                    filter: journeeTerminee ? "grayscale(0.7)" : "none",
+                  }}
+                />
+                <div>
+                  <strong style={{ display: "block" }}>
+                    {s.prenom} {s.nom}
+                  </strong>
+                  <span style={{ color: "var(--color-text-muted)", fontSize: "0.82rem" }}>{s.code}</span>
+                </div>
+                <StatutBadge statut={s.statut} journeeTerminee={s.journeeTerminee} />
               </div>
-              <StatutBadge statut={s.statut} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

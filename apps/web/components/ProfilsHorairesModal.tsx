@@ -185,6 +185,7 @@ export function ProfilsHorairesModal({
                     key={j.code}
                     style={{
                       display: "flex",
+                      flexWrap: "wrap",
                       alignItems: "center",
                       gap: "0.5rem",
                       padding: "0.4rem 0.6rem",
@@ -193,7 +194,7 @@ export function ProfilsHorairesModal({
                       background: actif ? "var(--color-surface)" : "transparent",
                     }}
                   >
-                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", minWidth: "7rem", marginBottom: 0 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", minWidth: "6rem", marginBottom: 0 }}>
                       <input
                         type="checkbox"
                         style={{ width: "auto", minHeight: "auto" }}
@@ -208,14 +209,14 @@ export function ProfilsHorairesModal({
                           type="time"
                           value={plage.debut}
                           onChange={(e) => modifierHeure(j.code, "debut", e.target.value)}
-                          style={{ minHeight: "auto", padding: "0.3rem 0.5rem" }}
+                          style={{ width: "auto", minHeight: "auto", padding: "0.3rem 0.5rem" }}
                         />
                         <span style={{ color: "var(--color-text-muted)" }}>–</span>
                         <input
                           type="time"
                           value={plage.fin}
                           onChange={(e) => modifierHeure(j.code, "fin", e.target.value)}
-                          style={{ minHeight: "auto", padding: "0.3rem 0.5rem" }}
+                          style={{ width: "auto", minHeight: "auto", padding: "0.3rem 0.5rem" }}
                         />
                       </>
                     )}

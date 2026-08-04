@@ -2,7 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
-import { enregistrerAbonnementPush, listerNotifications, marquerCommeLue } from "../services/notificationService";
+import {
+  enregistrerAbonnementPush,
+  listerNotifications,
+  marquerCommeLue,
+  marquerToutesCommeLues,
+} from "../services/notificationService";
 
 export const notificationsRouter = Router();
 
@@ -19,6 +24,11 @@ const subscribeSchema = z.object({
 
 notificationsRouter.post("/subscribe", validateBody(subscribeSchema), async (req, res) => {
   res.status(201).json(await enregistrerAbonnementPush(req.utilisateur!.id, req.body));
+});
+
+notificationsRouter.patch("/lu", async (req, res) => {
+  await marquerToutesCommeLues(req.utilisateur!.id);
+  res.status(204).send();
 });
 
 notificationsRouter.patch("/:id/lu", async (req, res) => {

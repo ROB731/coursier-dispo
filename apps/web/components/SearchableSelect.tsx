@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { IconChevronDown } from "@/components/icons";
 
 export interface OptionSelect {
   value: string;
@@ -73,9 +74,7 @@ export function SearchableSelect({
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {selection ? selection.label : placeholder}
         </span>
-        <span aria-hidden="true" style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>
-          ▾
-        </span>
+        <IconChevronDown size={16} aria-hidden="true" style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
       </button>
 
       {ouvert && !disabled && (

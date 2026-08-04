@@ -78,6 +78,13 @@ export async function marquerCommeLue(notificationId: string, utilisateurId: str
   });
 }
 
+export async function marquerToutesCommeLues(utilisateurId: string) {
+  return prisma.notification.updateMany({
+    where: { utilisateurId, lu: false },
+    data: { lu: true },
+  });
+}
+
 export async function enregistrerAbonnementPush(
   utilisateurId: string,
   subscription: { endpoint: string; keys: { p256dh: string; auth: string } }

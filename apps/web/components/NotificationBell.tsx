@@ -4,8 +4,57 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/apiClient";
 import { NotificationItem } from "@/lib/types";
 import { activerNotificationsPush, statutPermissionNotifications } from "@/lib/pushNotifications";
+import { IconBell, IconCheck } from "@/components/icons";
 
 const INTERVALLE_MS = 20_000;
+
+function formaterDate(iso: string): string {
+  const date = new Date(iso);
+  const maintenant = new Date();
+  const memeJour =
+    date.getFullYear() === maintenant.getFullYear() && date.getMonth() === maintenant.getMonth() && date.getDate() === maintenant.getDate();
+  return memeJour
+    ? `Aujourd'hui · ${date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+    : date.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function LigneNotification({ notification, onClic }: { notification: NotificationItem; onClic: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClic}
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "0.5rem",
+        width: "100%",
+        textAlign: "left",
+        padding: "0.6rem",
+        borderRadius: "var(--radius-sm)",
+        background: notification.lu ? "transparent" : "var(--color-primary-soft)",
+        marginBottom: "0.2rem",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          marginTop: "0.4rem",
+          flexShrink: 0,
+          background: notification.lu ? "transparent" : "var(--color-primary)",
+        }}
+      />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: "0.88rem", fontWeight: notification.lu ? 400 : 600, color: notification.lu ? "var(--color-text-muted)" : "var(--color-text)" }}>
+          {notification.message}
+        </div>
+        <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>{formaterDate(notification.envoyeAt)}</div>
+      </div>
+    </button>
+  );
+}
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -47,7 +96,13 @@ export function NotificationBell() {
     setNotifications((liste) => liste.map((n) => (n.id === id ? { ...n, lu: true } : n)));
   }
 
-  const nonLues = notifications.filter((n) => !n.lu).length;
+  async function toutMarquerLu() {
+    await api.patch("/api/notifications/lu");
+    setNotifications((liste) => liste.map((n) => ({ ...n, lu: true })));
+  }
+
+  const nonLues = notifications.filter((n) => !n.lu);
+  const lues = notifications.filter((n) => n.lu);
 
   return (
     <div ref={conteneurRef} style={{ position: "relative" }}>
@@ -56,10 +111,10 @@ export function NotificationBell() {
         className="btn-text"
         aria-label="Notifications"
         onClick={() => setOuvert((v) => !v)}
-        style={{ position: "relative", fontSize: "1.15rem" }}
+        style={{ position: "relative", display: "inline-flex" }}
       >
-        🔔
-        {nonLues > 0 && (
+        <IconBell size={19} />
+        {nonLues.length > 0 && (
           <span
             style={{
               position: "absolute",
@@ -78,25 +133,27 @@ export function NotificationBell() {
               padding: "0 3px",
             }}
           >
-            {nonLues > 9 ? "9+" : nonLues}
+            {nonLues.length > 9 ? "9+" : nonLues.length}
           </span>
         )}
       </button>
 
       {ouvert && (
-        <div
-          className="card"
-          style={{
-            position: "absolute",
-            right: 0,
-            top: "calc(100% + 0.5rem)",
-            width: 320,
-            maxHeight: 400,
-            overflowY: "auto",
-            zIndex: 60,
-            padding: "0.5rem",
-          }}
-        >
+        <div className="card notification-panel">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.2rem 0.4rem 0.5rem" }}>
+            <strong style={{ fontSize: "0.9rem" }}>Notifications</strong>
+            {nonLues.length > 0 && (
+              <button
+                type="button"
+                className="btn-text"
+                onClick={toutMarquerLu}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontSize: "0.78rem" }}
+              >
+                <IconCheck size={13} /> Tout marquer comme lu
+              </button>
+            )}
+          </div>
+
           {permission !== "granted" && permission !== "indisponible" && (
             <div style={{ padding: "0.6rem", borderBottom: "1px solid var(--color-border)", marginBottom: "0.4rem" }}>
               <p style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
@@ -114,28 +171,27 @@ export function NotificationBell() {
             </p>
           )}
 
-          {notifications.map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              onClick={() => marquerLue(n.id)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "0.6rem",
-                borderRadius: "var(--radius-sm)",
-                background: n.lu ? "transparent" : "var(--color-primary-soft)",
-                fontSize: "0.88rem",
-                marginBottom: "0.2rem",
-              }}
-            >
-              <div>{n.message}</div>
-              <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>
-                {new Date(n.envoyeAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+          {nonLues.length > 0 && (
+            <>
+              <div style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--color-primary)" }}>
+                Nouvelles
               </div>
-            </button>
-          ))}
+              {nonLues.map((n) => (
+                <LigneNotification key={n.id} notification={n} onClic={() => marquerLue(n.id)} />
+              ))}
+            </>
+          )}
+
+          {lues.length > 0 && (
+            <>
+              <div style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--color-text-muted)" }}>
+                Anciennes
+              </div>
+              {lues.map((n) => (
+                <LigneNotification key={n.id} notification={n} onClic={() => marquerLue(n.id)} />
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

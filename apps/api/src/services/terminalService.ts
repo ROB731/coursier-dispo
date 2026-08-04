@@ -23,7 +23,8 @@ export async function creerTerminal(input: CreerTerminalInput, entreprisesAccess
 export async function modifierTerminal(
   id: string,
   input: Partial<CreerTerminalInput> & { actif?: boolean },
-  entreprisesAccessibles: string[] | null
+  entreprisesAccessibles: string[] | null,
+  auteur: { id: string; nomComplet: string }
 ) {
   const terminal = await prisma.terminal.findUnique({ where: { id }, include: { site: true } });
   if (!terminal) throw new NotFoundError("Borne introuvable");
@@ -31,7 +32,17 @@ export async function modifierTerminal(
     throw new ForbiddenError("Vous ne gérez pas cette borne");
   }
   if (input.siteId) await verifierSiteAccessible(input.siteId, entreprisesAccessibles);
-  return prisma.terminal.update({ where: { id }, data: input, include: { site: true } });
+
+  // Traçabilité : on fige qui a désactivé le point, et on efface la trace à
+  // la réactivation — la page publique s'appuie dessus pour expliquer l'arrêt.
+  const audit =
+    input.actif === false
+      ? { desactiveParId: auteur.id, desactiveParNom: auteur.nomComplet, desactiveLe: new Date() }
+      : input.actif === true
+        ? { desactiveParId: null, desactiveParNom: null, desactiveLe: null }
+        : {};
+
+  return prisma.terminal.update({ where: { id }, data: { ...input, ...audit }, include: { site: true } });
 }
 
 export async function listerTerminaux(entreprisesAccessibles: string[] | null) {

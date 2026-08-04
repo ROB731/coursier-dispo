@@ -13,6 +13,11 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional().default(""),
   VAPID_PRIVATE_KEY: z.string().optional().default(""),
   VAPID_CONTACT_EMAIL: z.string().optional().default("mailto:contact@example.com"),
+  // Protège /api/cron/cloture — requis en production pour l'activer (voir cron.routes.ts).
+  CRON_SECRET: z.string().optional().default(""),
+  // Présent uniquement quand un store Vercel Blob est rattaché au projet — bascule
+  // le stockage des photos du disque local vers Vercel Blob (voir uploads.routes.ts).
+  BLOB_READ_WRITE_TOKEN: z.string().optional().default(""),
 });
 
 export const env = envSchema.parse(process.env);

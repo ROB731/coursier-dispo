@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { IconCheck, IconX } from "@/components/icons";
 
 type Variante = "succes" | "erreur";
 
@@ -59,8 +60,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               minWidth: 240,
             }}
           >
-            <span aria-hidden="true" style={{ color: t.variante === "succes" ? "var(--color-disponible)" : "var(--color-non-disponible)" }}>
-              {t.variante === "succes" ? "✓" : "✕"}
+            <span
+              aria-hidden="true"
+              style={{
+                display: "inline-flex",
+                flexShrink: 0,
+                color: t.variante === "succes" ? "var(--color-disponible)" : "var(--color-non-disponible)",
+              }}
+            >
+              {t.variante === "succes" ? <IconCheck size={16} /> : <IconX size={16} />}
             </span>
             <span>{t.message}</span>
           </div>

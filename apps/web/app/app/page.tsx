@@ -8,6 +8,7 @@ import { Site, StatutCoursier } from "@/lib/types";
 import { StatutBadge } from "@/components/StatutBadge";
 import { TopBar } from "@/components/TopBar";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { IconMenu } from "@/components/icons";
 
 const INTERVALLE_PAR_DEFAUT_MS = 7000;
 
@@ -65,8 +66,12 @@ export default function TableauDeBordPage() {
         titre="DISPO-COURSIER"
         left={
           utilisateur.role !== "SUPER_ADMIN" ? (
-            <Link href="/admin" className="btn-text" style={{ whiteSpace: "nowrap" }}>
-              ☰ Gestion
+            <Link
+              href="/admin"
+              className="btn-text"
+              style={{ whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+            >
+              <IconMenu size={15} /> Gestion
             </Link>
           ) : undefined
         }
@@ -86,27 +91,37 @@ export default function TableauDeBordPage() {
         </p>
 
         <div className="container" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          {statuts.map((s) => (
-            <div
-              key={s.coursierId}
-              className="card"
-              style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem" }}
-            >
-              <img
-                src={s.photoUrl}
-                alt=""
-                style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", background: "var(--color-border)" }}
-              />
-              <div style={{ flex: 1 }}>
-                <strong>
-                  {s.prenom} {s.nom}
-                </strong>
-                <span style={{ color: "var(--color-text-muted)", marginLeft: "0.5rem" }}>{s.code}</span>
-                <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>{formatDepuis(s.depuis)}</div>
+          {statuts.map((s) => {
+            const journeeTerminee = s.statut !== "DISPONIBLE" && s.journeeTerminee;
+            return (
+              <div
+                key={s.coursierId}
+                className="card"
+                style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.75rem 1rem", opacity: journeeTerminee ? 0.65 : 1 }}
+              >
+                <img
+                  src={s.photoUrl}
+                  alt=""
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    background: "var(--color-border)",
+                    filter: journeeTerminee ? "grayscale(0.7)" : "none",
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <strong>
+                    {s.prenom} {s.nom}
+                  </strong>
+                  <span style={{ color: "var(--color-text-muted)", marginLeft: "0.5rem" }}>{s.code}</span>
+                  <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>{formatDepuis(s.depuis)}</div>
+                </div>
+                <StatutBadge statut={s.statut} journeeTerminee={s.journeeTerminee} />
               </div>
-              <StatutBadge statut={s.statut} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

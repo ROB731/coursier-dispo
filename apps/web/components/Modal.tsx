@@ -1,5 +1,7 @@
 "use client";
 
+import { IconX } from "@/components/icons";
+
 export function Modal({
   titre,
   onClose,
@@ -41,7 +43,7 @@ export function Modal({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
           <h2 style={{ margin: 0 }}>{titre}</h2>
           <button type="button" className="btn-text" onClick={onClose} aria-label="Fermer">
-            ✕
+            <IconX size={17} />
           </button>
         </div>
         {children}

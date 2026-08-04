@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OptionSelect } from "./SearchableSelect";
+import { IconX } from "@/components/icons";
 
 export function MultiSearchableSelect({
   options,
@@ -75,9 +76,9 @@ export function MultiSearchableSelect({
               type="button"
               onClick={() => retirer(o.value)}
               aria-label={`Retirer ${o.label}`}
-              style={{ marginLeft: "0.2rem", fontWeight: 700 }}
+              style={{ marginLeft: "0.2rem", display: "inline-flex" }}
             >
-              ✕
+              <IconX size={13} />
             </button>
           </span>
         ))}

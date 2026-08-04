@@ -7,6 +7,7 @@ import { Coursier, Entreprise, ProfilHoraire, Site } from "@/lib/types";
 import { PhotoUploadField } from "@/components/PhotoUploadField";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { libelleHoraires } from "@/components/ProfilsHorairesModal";
+import { IconChevronDown } from "@/components/icons";
 
 const TYPES_CONTRAT = ["CDI", "CDD", "STAGIAIRE", "PRESTATAIRE"] as const;
 const LIBELLE_TYPE_CONTRAT: Record<string, string> = {
@@ -42,8 +43,26 @@ export function CoursierForm({ coursier, onSuccess }: { coursier?: Coursier; onS
     api.get<ProfilHoraire[]>("/api/profils-horaires").then(setProfils);
   }, []);
 
+  // Un seul périmètre accessible (cas courant Directeur/Gérante mono-entreprise) :
+  // pas besoin de le faire choisir.
+  useEffect(() => {
+    if (entreprises.length === 1 && entrepriseId !== entreprises[0].id) {
+      setEntrepriseId(entreprises[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entreprises]);
+
   const sitesFiltres = entrepriseId ? sites.filter((s) => s.entrepriseId === entrepriseId) : sites;
   const profilsFiltres = entrepriseId ? profils.filter((p) => p.entrepriseId === entrepriseId) : profils;
+
+  // Une seule entreprise n'a qu'un seul site (pas de mode multi-site accordé) :
+  // pas besoin de le faire choisir, on le rattache directement.
+  useEffect(() => {
+    if (sitesFiltres.length === 1 && siteId !== sitesFiltres[0].id) {
+      setSiteId(sitesFiltres[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sitesFiltres]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -117,79 +136,36 @@ export function CoursierForm({ coursier, onSuccess }: { coursier?: Coursier; onS
         <input id="nom" name="nom" required defaultValue={coursier?.nom} />
       </div>
 
-      <h2>Coordonnées</h2>
-      <div className="form-field">
-        <label htmlFor="telephone">Téléphone</label>
-        <input id="telephone" name="telephone" defaultValue={coursier?.telephone ?? undefined} />
-      </div>
-      <div className="form-field">
-        <label htmlFor="email">Email</label>
-        <input id="email" name="email" type="email" defaultValue={coursier?.email ?? undefined} />
-      </div>
-      <div className="form-field">
-        <label htmlFor="adresse">Adresse</label>
-        <input id="adresse" name="adresse" defaultValue={coursier?.adresse ?? undefined} />
-      </div>
-
-      <h2>Dossier</h2>
-      <div className="form-field">
-        <label htmlFor="dateNaissance">Date de naissance</label>
-        <input id="dateNaissance" name="dateNaissance" type="date" defaultValue={versDateInput(coursier?.dateNaissance ?? null)} />
-      </div>
-      <div className="form-field">
-        <label>Type de contrat</label>
-        <SearchableSelect
-          options={TYPES_CONTRAT.map((t) => ({ value: t, label: LIBELLE_TYPE_CONTRAT[t] }))}
-          value={typeContrat}
-          onChange={setTypeContrat}
-          placeholder="—"
-        />
-      </div>
-      <div className="form-field">
-        <label htmlFor="dateEmbauche">Date d&apos;embauche</label>
-        <input id="dateEmbauche" name="dateEmbauche" type="date" defaultValue={versDateInput(coursier?.dateEmbauche ?? null)} />
-      </div>
-
-      <h2>Contact d&apos;urgence</h2>
-      <div className="form-field">
-        <label htmlFor="contactUrgenceNom">Nom</label>
-        <input id="contactUrgenceNom" name="contactUrgenceNom" defaultValue={coursier?.contactUrgenceNom ?? undefined} />
-      </div>
-      <div className="form-field">
-        <label htmlFor="contactUrgenceTelephone">Téléphone</label>
-        <input
-          id="contactUrgenceTelephone"
-          name="contactUrgenceTelephone"
-          defaultValue={coursier?.contactUrgenceTelephone ?? undefined}
-        />
-      </div>
-
       <h2>Affectation</h2>
       {!modification && (
         <>
-          <div className="form-field">
-            <label>Entreprise *</label>
-            <SearchableSelect
-              options={entreprises.map((e) => ({ value: e.id, label: e.nom }))}
-              value={entrepriseId}
-              onChange={(v) => {
-                setEntrepriseId(v);
-                setSiteId("");
-                setProfilHoraireId("");
-              }}
-              placeholder="Sélectionner une entreprise…"
-            />
-          </div>
-          <div className="form-field">
-            <label>Site *</label>
-            <SearchableSelect
-              options={sitesFiltres.map((s) => ({ value: s.id, label: s.nom }))}
-              value={siteId}
-              onChange={setSiteId}
-              placeholder={entrepriseId ? "Sélectionner un site…" : "Choisissez d'abord une entreprise"}
-              disabled={!entrepriseId}
-            />
-          </div>
+          {entreprises.length !== 1 && (
+            <div className="form-field">
+              <label>Entreprise *</label>
+              <SearchableSelect
+                options={entreprises.map((e) => ({ value: e.id, label: e.nom }))}
+                value={entrepriseId}
+                onChange={(v) => {
+                  setEntrepriseId(v);
+                  setSiteId("");
+                  setProfilHoraireId("");
+                }}
+                placeholder="Sélectionner une entreprise…"
+              />
+            </div>
+          )}
+          {sitesFiltres.length !== 1 && (
+            <div className="form-field">
+              <label>Site *</label>
+              <SearchableSelect
+                options={sitesFiltres.map((s) => ({ value: s.id, label: s.nom }))}
+                value={siteId}
+                onChange={setSiteId}
+                placeholder={entrepriseId ? "Sélectionner un site…" : "Choisissez d'abord une entreprise"}
+                disabled={!entrepriseId}
+              />
+            </div>
+          )}
         </>
       )}
       <div className="form-field">
@@ -202,10 +178,57 @@ export function CoursierForm({ coursier, onSuccess }: { coursier?: Coursier; onS
         />
       </div>
 
-      <div className="form-field">
-        <label htmlFor="notes">Notes internes</label>
-        <textarea id="notes" name="notes" rows={3} defaultValue={coursier?.notes ?? undefined} />
-      </div>
+      <details className="form-details">
+        <summary>
+          <IconChevronDown size={15} className="form-details-chevron" /> Autre
+        </summary>
+
+        <div className="form-field" style={{ marginTop: "1rem" }}>
+          <label htmlFor="telephone">Téléphone</label>
+          <input id="telephone" name="telephone" defaultValue={coursier?.telephone ?? undefined} />
+        </div>
+        <div className="form-field">
+          <label htmlFor="email">Email</label>
+          <input id="email" name="email" type="email" defaultValue={coursier?.email ?? undefined} />
+        </div>
+        <div className="form-field">
+          <label htmlFor="adresse">Adresse</label>
+          <input id="adresse" name="adresse" defaultValue={coursier?.adresse ?? undefined} />
+        </div>
+        <div className="form-field">
+          <label htmlFor="dateNaissance">Date de naissance</label>
+          <input id="dateNaissance" name="dateNaissance" type="date" defaultValue={versDateInput(coursier?.dateNaissance ?? null)} />
+        </div>
+        <div className="form-field">
+          <label>Type de contrat</label>
+          <SearchableSelect
+            options={TYPES_CONTRAT.map((t) => ({ value: t, label: LIBELLE_TYPE_CONTRAT[t] }))}
+            value={typeContrat}
+            onChange={setTypeContrat}
+            placeholder="—"
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="dateEmbauche">Date d&apos;embauche</label>
+          <input id="dateEmbauche" name="dateEmbauche" type="date" defaultValue={versDateInput(coursier?.dateEmbauche ?? null)} />
+        </div>
+        <div className="form-field">
+          <label htmlFor="contactUrgenceNom">Contact d&apos;urgence — Nom</label>
+          <input id="contactUrgenceNom" name="contactUrgenceNom" defaultValue={coursier?.contactUrgenceNom ?? undefined} />
+        </div>
+        <div className="form-field">
+          <label htmlFor="contactUrgenceTelephone">Contact d&apos;urgence — Téléphone</label>
+          <input
+            id="contactUrgenceTelephone"
+            name="contactUrgenceTelephone"
+            defaultValue={coursier?.contactUrgenceTelephone ?? undefined}
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="notes">Notes internes</label>
+          <textarea id="notes" name="notes" rows={3} defaultValue={coursier?.notes ?? undefined} />
+        </div>
+      </details>
 
       {erreur && <p className="form-error">{erreur}</p>}
 

@@ -20,6 +20,9 @@ import { terminauxRouter } from "./routes/terminaux.routes";
 import { journalActiviteRouter } from "./routes/journalActivite.routes";
 import { uploadsRouter, UPLOAD_DIR } from "./routes/uploads.routes";
 import { entreprisesRouter } from "./routes/entreprises.routes";
+import { employesRouter } from "./routes/employes.routes";
+import { presencesEmployesRouter } from "./routes/presencesEmployes.routes";
+import { cronRouter } from "./routes/cron.routes";
 
 export const app = express();
 
@@ -53,5 +56,8 @@ app.use("/api/terminaux", terminauxRouter);
 app.use("/api/journal-activite", journalActiviteRouter);
 app.use("/api/uploads", uploadsRouter);
 app.use("/api/entreprises", entreprisesRouter);
+app.use("/api/employes", employesRouter);
+app.use("/api/presences-employes", presencesEmployesRouter);
+app.use("/api/cron", cronRouter);
 
 app.use(errorHandler);

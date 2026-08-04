@@ -20,3 +20,11 @@ export function horairesDuJour(horaires: Prisma.JsonValue, jour: JourSemaine): P
   if (typeof debut !== "string" || typeof fin !== "string") return null;
   return { debut, fin };
 }
+
+/** Combine le jour calendaire de `date` avec une heure "HH:mm" donnée. */
+export function combinerDateEtHeure(date: Date, heureHHmm: string): Date {
+  const [heures, minutes] = heureHHmm.split(":").map(Number);
+  const resultat = new Date(date);
+  resultat.setHours(heures, minutes, 0, 0);
+  return resultat;
+}

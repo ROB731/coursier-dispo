@@ -1,3 +1,5 @@
+import { IconCheck } from "@/components/icons";
+
 export function Toast({ message, onUndo }: { message: string; onUndo?: () => void }) {
   return (
     <div
@@ -15,7 +17,10 @@ export function Toast({ message, onUndo }: { message: string; onUndo?: () => voi
         zIndex: 60,
       }}
     >
-      <span>✓ {message}</span>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+        <IconCheck size={16} style={{ color: "var(--color-disponible)", flexShrink: 0 }} />
+        {message}
+      </span>
       {onUndo && (
         <button type="button" className="btn-text" onClick={onUndo}>
           Annuler

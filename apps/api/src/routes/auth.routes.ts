@@ -8,6 +8,7 @@ import { login, hashPassword, verifyPassword } from "../services/authService";
 import { prisma } from "../lib/prisma";
 import { env } from "../env";
 import { UnauthorizedError, ValidationError } from "../lib/errors";
+import { executerClotureAutomatique } from "../jobs/clotureAutomatique";
 
 export const authRouter = Router();
 
@@ -47,6 +48,12 @@ authRouter.post("/login", loginLimiter, validateBody(loginSchema), async (req, r
     ...OPTIONS_COOKIE_SESSION,
     maxAge: seSouvenir ? TRENTE_JOURS_MS : DOUZE_HEURES_MS,
   });
+
+  // Filet de sécurité en environnement serverless (pas de process persistant
+  // donc pas de cron interne) : on rattrape le retard de clôture automatique
+  // à chaque connexion, sans bloquer la réponse. Idempotent — sans effet si
+  // un cron régulier (Render, ou route /api/cron/cloture sur Vercel) a déjà fait le travail.
+  executerClotureAutomatique().catch((err) => console.error("Erreur clôture automatique (déclenchée au login)", err));
 
   res.json({ utilisateur });
 });

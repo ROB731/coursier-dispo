@@ -2,15 +2,11 @@ services:
   - type: web
     name: dispo-coursier-api
     runtime: node
-    plan: starter
+    plan: free
     rootDir: apps/api
     buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start
     healthCheckPath: /health
-    disk:
-      name: uploads
-      mountPath: /opt/render/project/src/apps/api/uploads
-      sizeGB: 1
     envVars:
       - key: DATABASE_URL
         sync: false

@@ -13,6 +13,7 @@ import {
   modifierCoursier,
   reactiverCoursier,
 } from "../services/coursierService";
+import { reinitialiserStatutCoursier } from "../services/evenementService";
 
 export const coursiersRouter = Router();
 
@@ -92,5 +93,14 @@ coursiersRouter.post(
   journaliser("Réactivation d'un coursier", (req) => req.params.id),
   async (req, res) => {
     res.json(await reactiverCoursier(req.params.id, req.entreprisesAccessibles ?? null));
+  }
+);
+
+coursiersRouter.post(
+  "/:id/reinitialiser-statut",
+  requireRole("SUPER_ADMIN", "DIRECTEUR", "GERANTE"),
+  journaliser("Réinitialisation du statut d'un coursier", (req) => req.params.id),
+  async (req, res) => {
+    res.status(201).json(await reinitialiserStatutCoursier(req.params.id, req.utilisateur!.id, req.entreprisesAccessibles ?? null));
   }
 );

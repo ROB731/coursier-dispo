@@ -109,6 +109,40 @@ export async function annulerEvenement({
   });
 }
 
+/**
+ * Réinitialise le statut d'un coursier bloqué (ex. entrée oubliée) en
+ * enregistrant une sortie manuelle — mêmes règles de calcul que partout
+ * ailleurs (statutService.calculerStatutDetaille), aucun état dérivé
+ * spécial : le coursier redevient NON_DISPONIBLE via le chemin habituel,
+ * traçable dans l'historique (source COMPTE + auteur).
+ */
+export async function reinitialiserStatutCoursier(
+  coursierId: string,
+  utilisateurId: string,
+  entreprisesAccessibles: string[] | null
+) {
+  const rattachement = await prisma.coursierSite.findFirst({
+    where: { coursierId, actif: true },
+    include: { site: true },
+    orderBy: { estSitePrincipal: "desc" },
+  });
+  if (!rattachement) throw new NotFoundError("Coursier introuvable ou sans site actif");
+  if (!entrepriseAccessible(entreprisesAccessibles, rattachement.site.entrepriseId)) {
+    throw new ForbiddenError("Vous ne gérez pas ce coursier");
+  }
+
+  return prisma.evenement.create({
+    data: {
+      coursierId,
+      siteId: rattachement.siteId,
+      type: "SORTIE",
+      source: "COMPTE",
+      creeParUtilisateurId: utilisateurId,
+      horodatage: new Date(),
+    },
+  });
+}
+
 interface HistoriqueFiltres {
   coursierId?: string;
   siteId?: string;

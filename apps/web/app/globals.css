@@ -255,6 +255,13 @@ a.card:hover {
   color: var(--color-non-disponible);
 }
 
+/* Journée terminée (hors plage horaire) : état normal en fin de journée,
+   pas une alerte — gris neutre plutôt que le rouge de badge-non-disponible. */
+.badge-cloture {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
 input[type="checkbox"] {
   accent-color: var(--color-primary);
 }
@@ -291,10 +298,134 @@ label {
   margin-bottom: 1.1rem;
 }
 
+/* Champ photo : avatar cliquable/glissable-déposable + aperçu instantané. */
+.photo-upload {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.photo-upload-avatar {
+  position: relative;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+  border: 2px dashed var(--color-border);
+  background: var(--color-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.photo-upload-avatar:hover,
+.photo-upload-avatar.survole {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.photo-upload-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-upload-spinner {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  animation: photo-upload-spin 0.7s linear infinite;
+}
+
+@keyframes photo-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Plage de dates (ex. filtre Historique) : les deux champs regroupés dans un
+   même cadre, hauteur alignée avec les autres contrôles du filtre. */
+.historique-plage-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0 0.75rem;
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.historique-plage-dates label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.historique-plage-dates input[type="datetime-local"] {
+  width: auto;
+  min-height: auto;
+  border: none;
+  padding: 0.3rem 0;
+  color: var(--color-text);
+}
+
 .form-error {
   color: var(--color-non-disponible);
   font-size: 0.9rem;
   margin-top: 0.75rem;
+}
+
+/* Section repliable des champs secondaires d'un formulaire (ex. "Autre" du
+   formulaire coursier) — ne montre que l'essentiel par défaut. */
+.form-details {
+  margin-bottom: 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+}
+
+.form-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  list-style: none;
+}
+
+.form-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.form-details-chevron {
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.form-details[open] .form-details-chevron {
+  transform: rotate(180deg);
 }
 
 .top-bar {
@@ -324,6 +455,38 @@ label {
 @media (max-width: 480px) {
   .top-bar-utilisateur {
     display: none;
+  }
+
+  .connection-label {
+    display: none;
+  }
+}
+
+/* Panneau de notifications : ancré sous la cloche sur grand écran. Sur mobile,
+   la cloche n'est pas collée au bord droit (ThemeToggle/nom/déconnexion sont
+   après elle) — un panneau "right: 0" relatif au bouton déborderait alors du
+   viewport et serait rogné par le overflow-x:hidden global. On bascule donc
+   en position fixe, ancrée aux bords de l'écran, en dessous de la barre du haut. */
+.notification-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  width: 20rem;
+  max-width: calc(100vw - 1.5rem);
+  max-height: 25rem;
+  overflow-y: auto;
+  z-index: 60;
+  padding: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .notification-panel {
+    position: fixed;
+    top: 4.5rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+    max-width: none;
   }
 }
 
@@ -534,4 +697,192 @@ label {
 
 .data-table tr:hover td {
   background: var(--color-surface-hover);
+}
+
+/* ---------- Panneau de marque (login) : vagues de couleur animées ----------
+   Fond ambiant en boucle continue, indépendant de tout capteur (pas de
+   gyroscope/orientation) — juste une animation CSS qui tourne toute seule. */
+
+.brand-panel {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.brand-panel-waves {
+  position: absolute;
+  inset: -15%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.brand-panel-waves span {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(3.75rem);
+  opacity: 0.55;
+  mix-blend-mode: soft-light;
+  will-change: transform;
+  animation: brand-wave-drift 24s ease-in-out infinite;
+}
+
+.brand-panel-waves span:nth-child(1) {
+  width: 24rem;
+  height: 24rem;
+  background: var(--color-accent);
+  top: -10%;
+  left: -12%;
+  animation-duration: 27s;
+}
+
+.brand-panel-waves span:nth-child(2) {
+  width: 19rem;
+  height: 19rem;
+  background: #ffffff;
+  bottom: -14%;
+  right: -8%;
+  animation-duration: 20s;
+  animation-delay: -6s;
+  animation-direction: alternate-reverse;
+}
+
+.brand-panel-waves span:nth-child(3) {
+  width: 17rem;
+  height: 17rem;
+  background: var(--color-primary-hover);
+  top: 38%;
+  left: 52%;
+  animation-duration: 25s;
+  animation-delay: -12s;
+}
+
+.brand-panel-content {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes brand-wave-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(7%, 9%) scale(1.1);
+  }
+  50% {
+    transform: translate(-5%, 12%) scale(0.94);
+  }
+  75% {
+    transform: translate(-9%, -7%) scale(1.06);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-panel-waves span {
+    animation: none;
+  }
+}
+
+/* Onglets horizontaux de la borne (Coursiers / Employés) — deux univers
+   distincts, jamais mélangés dans la même liste ni le même badge.
+   Réversible en haut/bas via .borne-onglets.bas (bouton de bascule). */
+.borne-onglets {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.borne-onglets.bas {
+  border-bottom: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.borne-onglet-bascule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.6rem;
+  color: var(--color-text-muted);
+  border-right: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.borne-onglet-bascule:hover {
+  color: var(--color-primary);
+}
+
+.borne-onglet {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 3px solid transparent;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.borne-onglets.bas .borne-onglet {
+  border-bottom: none;
+  border-top: 3px solid transparent;
+}
+
+.borne-onglet:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.borne-onglet.actif {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.borne-onglets.bas .borne-onglet.actif {
+  border-bottom-color: transparent;
+  border-top-color: var(--color-primary);
+}
+
+.borne-onglet-compte {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.borne-onglet.actif .borne-onglet-compte {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+/* Bouton "remonter" flottant — apparaît une fois qu'on a défilé, pour
+   revenir en haut de la grille sans tout remonter au doigt. */
+.bouton-remonter {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  box-shadow: var(--shadow-lg);
+  z-index: 45;
+}
+
+.bouton-remonter:hover {
+  background: var(--color-primary-hover);
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { appliquerTheme, getThemeStocke, Theme } from "@/lib/theme";
+import { IconMoon, IconSun } from "@/components/icons";
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
@@ -24,7 +25,7 @@ export function ThemeToggle() {
       aria-label={theme === "light" ? "Passer en mode sombre" : "Passer en mode clair"}
       title={theme === "light" ? "Mode sombre" : "Mode clair"}
     >
-      {theme === "light" ? "🌙" : "☀️"}
+      {theme === "light" ? <IconMoon size={17} /> : <IconSun size={17} />}
     </button>
   );
 }

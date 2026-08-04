@@ -25,6 +25,8 @@ export interface CoursierBorne {
   nom: string;
   photoUrl: string;
   statut: Statut;
+  horsPlageHoraire: boolean;
+  journeeTerminee: boolean;
 }
 
 export interface StatutCoursier {
@@ -34,6 +36,8 @@ export interface StatutCoursier {
   nom: string;
   photoUrl: string;
   statut: Statut;
+  horsPlageHoraire: boolean;
+  journeeTerminee: boolean;
   depuis: string | null;
 }
 
@@ -139,4 +143,56 @@ export interface Coursier {
   statutActif: boolean;
   profilHoraireId: string;
   multiSiteActive: boolean;
+}
+
+// ---------- Employés (registre présence/absence — domaine séparé des Coursiers) ----------
+
+export type StatutPresence = "PRESENT" | "ABSENT";
+export type TypeAbsence = "CONGE_PAYE" | "MALADIE" | "CONGE_SANS_SOLDE" | "AUTRE";
+
+export interface Employe {
+  id: string;
+  entrepriseId: string;
+  siteId: string | null;
+  site: { id: string; nom: string } | null;
+  prenom: string;
+  nom: string;
+  poste: string | null;
+  telephone: string | null;
+  email: string | null;
+  photoUrl: string | null;
+  actif: boolean;
+}
+
+export interface PresenceEmploye {
+  id: string;
+  employeId: string;
+  date: string;
+  statut: StatutPresence;
+  typeAbsence: TypeAbsence | null;
+  commentaire: string | null;
+  heureEntree: string | null;
+  heureSortie: string | null;
+  enregistreParNom: string | null;
+}
+
+export interface EmployeBorne {
+  id: string;
+  prenom: string;
+  nom: string;
+  poste: string | null;
+  photoUrl: string | null;
+  presence: PresenceEmploye | null;
+}
+
+export interface RegistreJourLigne {
+  employe: {
+    id: string;
+    prenom: string;
+    nom: string;
+    poste: string | null;
+    photoUrl: string | null;
+    site: { id: string; nom: string } | null;
+  };
+  presence: PresenceEmploye | null;
 }

@@ -8,6 +8,8 @@ const LIENS = [
   { href: "/admin", label: "Tableau de bord", roles: ["SUPER_ADMIN", "DIRECTEUR", "GERANTE"] as Role[] },
   { href: "/admin/entreprises", label: "Entreprises", roles: ["SUPER_ADMIN"] as Role[] },
   { href: "/admin/coursiers", label: "Coursiers", roles: ["SUPER_ADMIN", "DIRECTEUR", "GERANTE"] as Role[] },
+  { href: "/admin/employes", label: "Employés", roles: ["SUPER_ADMIN", "DIRECTEUR", "GERANTE"] as Role[] },
+  { href: "/admin/presences", label: "Présences", roles: ["SUPER_ADMIN", "DIRECTEUR", "GERANTE"] as Role[] },
   { href: "/admin/comptes", label: "Comptes", roles: ["SUPER_ADMIN", "DIRECTEUR"] as Role[] },
   { href: "/admin/sites", label: "Sites", roles: ["SUPER_ADMIN", "DIRECTEUR", "GERANTE"] as Role[] },
   { href: "/admin/bornes", label: "À la porte", roles: ["SUPER_ADMIN", "DIRECTEUR", "GERANTE"] as Role[] },

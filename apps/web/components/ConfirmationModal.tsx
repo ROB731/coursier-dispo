@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CoursierBorne } from "@/lib/types";
+import { IconArrowRight } from "@/components/icons";
 
 type TypeAction = "ENTREE" | "SORTIE";
 
@@ -74,8 +75,9 @@ export function ConfirmationModal({
           className="btn-text"
           disabled={enCours}
           onClick={() => setTypeChoisi(autre)}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
         >
-          Ce n&apos;est pas ça → {autre === "ENTREE" ? "Entrée" : "Sortie"}
+          Ce n&apos;est pas ça <IconArrowRight size={14} /> {autre === "ENTREE" ? "Entrée" : "Sortie"}
         </button>
 
         <div style={{ marginTop: "1rem" }}>

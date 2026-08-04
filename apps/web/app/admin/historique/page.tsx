@@ -90,7 +90,7 @@ export default function HistoriquePage() {
         </h1>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem", margin: "1rem 0" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem", margin: "1rem 0", alignItems: "flex-start" }}>
         <input
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
@@ -115,14 +115,16 @@ export default function HistoriquePage() {
             placeholder="Tous les comptes"
           />
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: 0, fontSize: "0.85rem" }}>
-          Depuis
-          <input type="datetime-local" value={depuis} onChange={(e) => setDepuis(e.target.value)} style={{ minHeight: "auto" }} />
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: 0, fontSize: "0.85rem" }}>
-          Jusqu'à
-          <input type="datetime-local" value={jusqua} onChange={(e) => setJusqua(e.target.value)} style={{ minHeight: "auto" }} />
-        </label>
+        <div className="historique-plage-dates">
+          <label>
+            <span>Depuis</span>
+            <input type="datetime-local" value={depuis} onChange={(e) => setDepuis(e.target.value)} />
+          </label>
+          <label>
+            <span>Jusqu&apos;à</span>
+            <input type="datetime-local" value={jusqua} onChange={(e) => setJusqua(e.target.value)} />
+          </label>
+        </div>
       </div>
 
       {chargement && <p style={{ color: "var(--color-text-muted)" }}>Chargement…</p>}

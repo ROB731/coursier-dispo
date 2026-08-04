@@ -2,6 +2,7 @@
 
 import { CoursierBorne } from "@/lib/types";
 import { StatutBadge } from "./StatutBadge";
+import { IconX } from "@/components/icons";
 
 export function RecapDetailsModal({ coursiers, onClose }: { coursiers: CoursierBorne[]; onClose: () => void }) {
   const tries = [...coursiers].sort((a, b) => {
@@ -33,7 +34,7 @@ export function RecapDetailsModal({ coursiers, onClose }: { coursiers: CoursierB
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h2 style={{ margin: 0 }}>Détail des coursiers</h2>
           <button type="button" className="btn-text" onClick={onClose} aria-label="Fermer">
-            ✕
+            <IconX size={17} />
           </button>
         </div>
 
@@ -51,7 +52,7 @@ export function RecapDetailsModal({ coursiers, onClose }: { coursiers: CoursierB
                 </strong>
                 <span style={{ color: "var(--color-text-muted)", marginLeft: "0.4rem", fontSize: "0.85rem" }}>{c.code}</span>
               </div>
-              <StatutBadge statut={c.statut} contexte="borne" />
+              <StatutBadge statut={c.statut} journeeTerminee={c.journeeTerminee} contexte="borne" />
             </div>
           ))}
         </div>

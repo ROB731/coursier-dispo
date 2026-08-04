@@ -67,6 +67,7 @@ model Entreprise {
   utilisateursDirects  Utilisateur[]         @relation("UtilisateurEntreprise")
   directeurEntreprises DirecteurEntreprise[]
   journalActivite      JournalActivite[]
+  employes             Employe[]
 
   @@index([actif])
 }
@@ -119,6 +120,8 @@ model Utilisateur {
   pushSubscriptions    PushSubscription[]
   notifications        Notification[]
   journalActivite      JournalActivite[]
+  terminauxDesactives  Terminal[]       @relation("TerminalDesactivePar")
+  presencesEnregistrees PresenceEmploye[] @relation("PresenceEnregistreePar")
 
   @@index([role])
   @@index([entrepriseId])
@@ -161,6 +164,7 @@ model Site {
   terminaux             Terminal[]
   evenements             Evenement[]
   utilisateursParDefaut  Utilisateur[]  @relation("UtilisateurSiteParDefaut")
+  employes               Employe[]
 
   @@index([actif])
   @@index([entrepriseId])
@@ -174,6 +178,13 @@ model Terminal {
   derniereActiviteAt DateTime?
   actif              Boolean   @default(true)
   createdAt          DateTime  @default(now())
+
+  // Traçabilité de la désactivation — nom figé (snapshot) pour rester
+  // affichable même si le compte est ensuite supprimé/anonymisé.
+  desactivePar       Utilisateur? @relation("TerminalDesactivePar", fields: [desactiveParId], references: [id], onDelete: SetNull)
+  desactiveParId     String?
+  desactiveParNom    String?
+  desactiveLe        DateTime?
 
   evenements         Evenement[]
 
@@ -309,4 +320,72 @@ model ParametresApplication {
   fenetreAnnulationBorneMinutes Int        @default(2)
   intervallePollingSecondes     Int        @default(7)
   clotureAutoActive             Boolean    @default(true)
+}
+
+// ---------- Employés (registre de présence/absence) ----------
+// Domaine volontairement séparé des Coursiers : autre métier (personnel de
+// bureau, pas des livreurs), autre logique temporelle (registre quotidien
+// présent/absent, pas un badge temps réel via une borne physique). Ne
+// partage aucune table avec Coursier — écrans, listes et navigation propres,
+// pour ne jamais mélanger les deux univers.
+
+enum StatutPresence {
+  PRESENT
+  ABSENT
+}
+
+enum TypeAbsence {
+  CONGE_PAYE
+  MALADIE
+  CONGE_SANS_SOLDE
+  AUTRE
+}
+
+model Employe {
+  id           String     @id @default(uuid())
+  entreprise   Entreprise @relation(fields: [entrepriseId], references: [id], onDelete: Restrict)
+  entrepriseId String
+  site         Site?      @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  siteId       String?
+  prenom       String
+  nom          String
+  poste        String?
+  telephone    String?
+  email        String?
+  photoUrl     String?
+  actif        Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  presences    PresenceEmploye[]
+
+  @@index([entrepriseId])
+  @@index([siteId])
+  @@index([actif])
+}
+
+// Une ligne par employé et par jour — @@unique garantit qu'un nouveau
+// pointage écrase (upsert) celui du jour plutôt que d'en empiler plusieurs.
+model PresenceEmploye {
+  id               String         @id @default(uuid())
+  employe          Employe        @relation(fields: [employeId], references: [id], onDelete: Cascade)
+  employeId        String
+  date             DateTime       @db.Date
+  statut           StatutPresence
+  typeAbsence      TypeAbsence?
+  commentaire      String?
+  // Pointage simple à la porte, un aller-retour par jour — pas un historique
+  // d'événements comme pour les coursiers (pas besoin : un employé n'est pas
+  // suivi en temps réel pour du dispatch, juste "arrivé le matin / reparti le soir").
+  heureEntree      DateTime?
+  heureSortie      DateTime?
+  enregistrePar    Utilisateur?   @relation("PresenceEnregistreePar", fields: [enregistreParId], references: [id], onDelete: SetNull)
+  enregistreParId  String?
+  enregistreParNom String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([employeId, date])
+  @@index([employeId, date])
+  @@index([date])
 }

@@ -36,6 +36,7 @@ export default function LoginPage() {
   return (
     <main className="login-grid">
       <section
+        className="brand-panel"
         style={{
           background: "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%)",
           color: "#ffffff",
@@ -48,15 +49,22 @@ export default function LoginPage() {
           gap: "1.5rem",
         }}
       >
-        <BrandIllustration />
-        <div>
-          <h1 style={{ fontSize: "1.9rem", margin: "0 0 0.75rem" }}>DISPO-COURSIER</h1>
-          <p style={{ fontSize: "1.05rem", opacity: 0.92, maxWidth: "22.5rem", margin: "0 auto", lineHeight: 1.6 }}>
-            Savoir en temps réel quels coursiers sont physiquement présents au siège — pour attribuer chaque
-            course sans perdre une minute.
-          </p>
+        <div className="brand-panel-waves" aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
-        <p style={{ fontSize: "0.85rem", opacity: 0.75 }}>IVOIRRAPID</p>
+        <div className="brand-panel-content" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem" }}>
+          <BrandIllustration />
+          <div>
+            <h1 style={{ fontSize: "1.9rem", margin: "0 0 0.75rem" }}>DISPO-COURSIER</h1>
+            <p style={{ fontSize: "1.05rem", opacity: 0.92, maxWidth: "22.5rem", margin: "0 auto", lineHeight: 1.6 }}>
+              Savoir en temps réel quels coursiers sont physiquement présents au siège — pour attribuer chaque
+              course sans perdre une minute.
+            </p>
+          </div>
+          <p style={{ fontSize: "0.85rem", opacity: 0.75 }}>IVOIRRAPID</p>
+        </div>
       </section>
 
       <section
@@ -120,7 +128,9 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <style>{`
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         .login-grid {
           display: grid;
           grid-template-columns: 1fr;
@@ -134,7 +144,9 @@ export default function LoginPage() {
             grid-template-columns: 1fr 1fr;
           }
         }
-      `}</style>
+      `,
+        }}
+      />
     </main>
   );
 }

@@ -1,31 +1,27 @@
 import cron from "node-cron";
 import { prisma } from "../lib/prisma";
-import { horairesDuJour, JourSemaine } from "../lib/horaires";
+import { combinerDateEtHeure, horairesDuJour, JourSemaine } from "../lib/horaires";
 
 const JOURS_PAR_INDEX_JS: JourSemaine[] = ["DIM", "LUN", "MAR", "MER", "JEU", "VEN", "SAM"];
 
-function formatHHmm(date: Date): string {
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
 /**
- * Clôture automatiquement, à l'heure de fin de chaque profil horaire, les
- * coursiers dont le dernier événement non annulé est une ENTREE du jour.
- * Écrit l'historique (traçabilité) — l'affichage du statut ne dépend jamais
- * uniquement de ce job (cf. statutService.calculerStatut).
+ * Clôture automatiquement les coursiers dont le dernier événement non annulé
+ * est une ENTREE dont l'heure de fin de plage (calculée sur le jour de cette
+ * ENTREE) est déjà passée. Écrit l'historique (traçabilité) — l'affichage du
+ * statut ne dépend jamais de ce job (cf. statutService.calculerStatutDetaille).
+ *
+ * Volontairement conçu pour rattraper un retard plutôt que d'exiger d'être
+ * appelé pile à la bonne minute : ça permet de le déclencher aussi bien via
+ * un cron régulier que ponctuellement (ex. à la connexion d'un utilisateur),
+ * les deux étant idempotents et complémentaires plutôt qu'exclusifs.
  */
 export async function executerClotureAutomatique(maintenant: Date = new Date()) {
-  const heureActuelle = formatHHmm(maintenant);
-  const jourActuel = JOURS_PAR_INDEX_JS[maintenant.getDay()];
-
   // Chaque entreprise décide indépendamment d'activer la clôture automatique.
-  // Les horaires (par jour) sont en JSON : on filtre en mémoire plutôt qu'en SQL.
   const profilsActifs = await prisma.profilHoraire.findMany({
     where: { actif: true, entreprise: { parametres: { clotureAutoActive: true } } },
   });
-  const profils = profilsActifs.filter((p) => horairesDuJour(p.horaires, jourActuel)?.fin === heureActuelle);
 
-  for (const profil of profils) {
+  for (const profil of profilsActifs) {
     const coursiers = await prisma.coursier.findMany({
       where: { profilHoraireId: profil.id, statutActif: true },
     });
@@ -40,23 +36,31 @@ export async function executerClotureAutomatique(maintenant: Date = new Date()) 
         orderBy: { horodatage: "desc" },
       });
 
-      if (dernier?.type === "ENTREE") {
-        await prisma.evenement.create({
-          data: {
-            coursierId: coursier.id,
-            siteId: dernier.siteId,
-            type: "CLOTURE_AUTO",
-            source: "SYSTEME",
-            horodatage: maintenant,
-          },
-        });
-      }
+      if (dernier?.type !== "ENTREE") continue;
+
+      const jourEntree = JOURS_PAR_INDEX_JS[dernier.horodatage.getDay()];
+      const plage = horairesDuJour(profil.horaires, jourEntree);
+      if (!plage) continue;
+
+      const heureFermeture = combinerDateEtHeure(dernier.horodatage, plage.fin);
+      if (heureFermeture > maintenant) continue;
+
+      await prisma.evenement.create({
+        data: {
+          coursierId: coursier.id,
+          siteId: dernier.siteId,
+          type: "CLOTURE_AUTO",
+          source: "SYSTEME",
+          horodatage: heureFermeture,
+        },
+      });
     }
   }
 }
 
+/** Pour les environnements avec process persistant (local, Render) — filet de sécurité. */
 export function demarrerJobClotureAutomatique() {
-  cron.schedule("* * * * *", () => {
+  cron.schedule("*/5 * * * *", () => {
     executerClotureAutomatique().catch((err) => console.error("Erreur job de clôture automatique", err));
   });
 }
