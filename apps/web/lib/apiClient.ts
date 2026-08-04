@@ -1,13 +1,15 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
   }
 }
 
+// Chemin relatif (même origine que la page) : next.config.js proxifie /api,
+// /uploads et /health vers la vraie API côté serveur — le navigateur ne voit
+// qu'un seul domaine, donc le cookie de session est posé sur ce domaine et
+// reste visible du middleware Next.js qui protège /app et /admin.
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(path, {
     ...options,
     credentials: "include",
     headers: {
@@ -43,7 +45,7 @@ export async function uploaderPhoto(fichier: File): Promise<{ url: string }> {
   const formulaire = new FormData();
   formulaire.append("photo", fichier);
 
-  const res = await fetch(`${API_URL}/api/uploads/photo`, {
+  const res = await fetch("/api/uploads/photo", {
     method: "POST",
     credentials: "include",
     body: formulaire,

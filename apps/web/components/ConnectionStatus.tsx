@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 type EtatConnexion = "connecte" | "hors-connexion" | "verification";
 
 const INTERVALLE_MS = 20_000;
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 const LIBELLE: Record<EtatConnexion, string> = {
   connecte: "Connecté",
@@ -34,7 +33,7 @@ export function ConnectionStatus() {
         return;
       }
       try {
-        const res = await fetch(`${API_URL}/health`, { cache: "no-store" });
+        const res = await fetch("/health", { cache: "no-store" });
         if (!annule) setEtat(res.ok ? "connecte" : "hors-connexion");
       } catch {
         if (!annule) setEtat("hors-connexion");
