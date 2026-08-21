@@ -23,8 +23,14 @@ import { entreprisesRouter } from "./routes/entreprises.routes";
 import { employesRouter } from "./routes/employes.routes";
 import { presencesEmployesRouter } from "./routes/presencesEmployes.routes";
 import { cronRouter } from "./routes/cron.routes";
+import { configurerWebPush } from "./lib/webPush";
 
 export const app = express();
+
+// Doit être appelé ici (pas seulement dans server.ts) : sur Vercel, api/index.ts
+// importe app.ts directement, server.ts n'est jamais exécuté — sans cet appel,
+// les notifications push échouaient silencieusement en production.
+configurerWebPush();
 
 // Nécessaire derrière un reverse proxy (Vercel, Render) pour que
 // express-rate-limit identifie correctement les utilisateurs via X-Forwarded-For.
