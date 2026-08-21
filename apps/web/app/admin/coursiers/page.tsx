@@ -11,9 +11,12 @@ import { CoursierForm } from "@/components/CoursierForm";
 import { CoursierDetailModal } from "@/components/CoursierDetailModal";
 import { usePagination } from "@/lib/usePagination";
 import { Pagination } from "@/components/Pagination";
+import { useUtilisateur } from "@/lib/useUtilisateur";
+import { ApiError } from "@/lib/apiClient";
 
 export default function ListeCoursiersPage() {
   const { showToast } = useToast();
+  const { utilisateur } = useUtilisateur();
   const { vue, setVue } = useVueListe();
   const [coursiers, setCoursiers] = useState<Coursier[]>([]);
   const [modalOuvert, setModalOuvert] = useState(false);
@@ -33,6 +36,19 @@ export default function ListeCoursiersPage() {
     await api.post(`/api/coursiers/${c.id}/${action}`);
     showToast(c.statutActif ? "Coursier désactivé" : "Coursier réactivé");
     recharger();
+  }
+
+  async function supprimer(c: Coursier) {
+    const nomComplet = `${c.prenom} ${c.nom}`.trim();
+    if (!window.confirm(`Supprimer définitivement ${nomComplet} (${c.code}) ? Cette action est irréversible.`)) return;
+
+    try {
+      await api.delete(`/api/coursiers/${c.id}`);
+      showToast("Coursier supprimé");
+      await recharger();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Impossible de supprimer le coursier");
+    }
   }
 
   function ouvrirCreation() {
@@ -94,6 +110,11 @@ export default function ListeCoursiersPage() {
                 <button type="button" className="btn btn-secondary" onClick={() => basculerActivation(c)}>
                   {c.statutActif ? "Désactiver" : "Réactiver"}
                 </button>
+                {utilisateur?.role === "SUPER_ADMIN" && (
+                  <button type="button" className="btn btn-secondary" onClick={() => supprimer(c)}>
+                    Supprimer
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -140,6 +161,11 @@ export default function ListeCoursiersPage() {
                       <button type="button" className="btn btn-secondary" onClick={() => basculerActivation(c)}>
                         {c.statutActif ? "Désactiver" : "Réactiver"}
                       </button>
+                      {utilisateur?.role === "SUPER_ADMIN" && (
+                        <button type="button" className="btn btn-secondary" onClick={() => supprimer(c)}>
+                          Supprimer
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

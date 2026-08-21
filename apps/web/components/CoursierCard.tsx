@@ -1,14 +1,32 @@
 import { CoursierBorne } from "@/lib/types";
 import { StatutBadge } from "./StatutBadge";
+import { IconZoom } from "./icons";
 
-export function CoursierCard({ coursier, onSelect }: { coursier: CoursierBorne; onSelect: (c: CoursierBorne) => void }) {
+export function CoursierCard({
+  coursier,
+  onSelect,
+  onZoom,
+}: {
+  coursier: CoursierBorne;
+  onSelect: (c: CoursierBorne) => void;
+  onZoom: (c: CoursierBorne) => void;
+}) {
   const disponible = coursier.statut === "DISPONIBLE";
   const journeeTerminee = !disponible && coursier.journeeTerminee;
 
   return (
-    <button
-      onClick={() => onSelect(coursier)}
-      disabled={journeeTerminee}
+    <div
+      role="button"
+      tabIndex={journeeTerminee ? -1 : 0}
+      onClick={() => {
+        if (!journeeTerminee) onSelect(coursier);
+      }}
+      onKeyDown={(e) => {
+        if (!journeeTerminee && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onSelect(coursier);
+        }
+      }}
       title={journeeTerminee ? "Journée terminée — reprend demain" : undefined}
       className="card"
       style={{
@@ -37,11 +55,26 @@ export function CoursierCard({ coursier, onSelect }: { coursier: CoursierBorne; 
           filter: journeeTerminee ? "grayscale(0.7)" : "none",
         }}
       />
+      <button
+        type="button"
+        className="btn-text"
+        onClick={(e) => {
+          e.stopPropagation();
+          onZoom(coursier);
+        }}
+        onKeyDown={(e) => e.stopPropagation()}
+        aria-label={`Agrandir la photo de ${coursier.prenom} ${coursier.nom}`}
+        title="Agrandir la photo"
+        style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.15rem 0.35rem" }}
+      >
+        <IconZoom size={16} />
+        <span style={{ fontSize: "0.75rem" }}>Voir la photo</span>
+      </button>
       <StatutBadge statut={coursier.statut} journeeTerminee={coursier.journeeTerminee} contexte="borne" />
       <strong style={{ fontSize: "1.1rem" }}>{coursier.code}</strong>
       <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", textAlign: "center" }}>
         {coursier.prenom} {coursier.nom}
       </span>
-    </button>
+    </div>
   );
 }

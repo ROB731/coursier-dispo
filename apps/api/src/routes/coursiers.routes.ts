@@ -12,6 +12,7 @@ import {
   listerCoursiers,
   modifierCoursier,
   reactiverCoursier,
+  supprimerCoursier,
 } from "../services/coursierService";
 import { reinitialiserStatutCoursier } from "../services/evenementService";
 
@@ -93,6 +94,16 @@ coursiersRouter.post(
   journaliser("Réactivation d'un coursier", (req) => req.params.id),
   async (req, res) => {
     res.json(await reactiverCoursier(req.params.id, req.entreprisesAccessibles ?? null));
+  }
+);
+
+coursiersRouter.delete(
+  "/:id",
+  requireRole("SUPER_ADMIN"),
+  journaliser("Suppression définitive d'un coursier", (req) => req.params.id),
+  async (req, res) => {
+    await supprimerCoursier(req.params.id, req.entreprisesAccessibles ?? null);
+    res.status(204).send();
   }
 );
 

@@ -9,6 +9,7 @@ import { RecapDetailsModal } from "@/components/RecapDetailsModal";
 import { Toast } from "@/components/Toast";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { IconBan, IconChevronDown, IconDownload } from "@/components/icons";
+import { Modal } from "@/components/Modal";
 
 interface ReponseBorneCoursiers {
   terminal: { id: string; siteId: string; nom: string };
@@ -32,6 +33,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const [coursiers, setCoursiers] = useState<CoursierBorne[]>([]);
   const [recherche, setRecherche] = useState("");
   const [selectionCoursier, setSelectionCoursier] = useState<CoursierBorne | null>(null);
+  const [photoAgrandie, setPhotoAgrandie] = useState<CoursierBorne | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; evenementId?: string } | null>(null);
@@ -225,7 +227,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
         )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "1rem", padding: "1rem" }}>
           {coursiersFiltres.map((c) => (
-            <CoursierCard key={c.id} coursier={c} onSelect={setSelectionCoursier} />
+            <CoursierCard key={c.id} coursier={c} onSelect={setSelectionCoursier} onZoom={setPhotoAgrandie} />
           ))}
         </div>
       </div>
@@ -243,6 +245,19 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           onConfirm={confirmerActionCoursier}
           onClose={() => setSelectionCoursier(null)}
         />
+      )}
+
+      {photoAgrandie && (
+        <Modal titre={`Photo de ${photoAgrandie.prenom} ${photoAgrandie.nom}`} onClose={() => setPhotoAgrandie(null)} maxWidth="34rem">
+          <img
+            src={photoAgrandie.photoUrl}
+            alt={`Photo de ${photoAgrandie.prenom} ${photoAgrandie.nom}`}
+            style={{ display: "block", width: "100%", maxHeight: "65vh", objectFit: "contain", borderRadius: "0.5rem" }}
+          />
+          <p style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "0.75rem 0 0" }}>
+            {photoAgrandie.code}
+          </p>
+        </Modal>
       )}
 
       {toast && <Toast message={toast.message} onUndo={toast.evenementId ? annulerDerniereAction : undefined} />}

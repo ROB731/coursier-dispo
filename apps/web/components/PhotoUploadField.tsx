@@ -21,6 +21,40 @@ async function versFichierEnvoyable(fichier: File): Promise<File> {
   return new File([blob], fichier.name.replace(REGEX_HEIC, ".jpg"), { type: "image/jpeg" });
 }
 
+const DIMENSION_MAXIMALE = 1600;
+const QUALITE_JPEG = 0.82;
+
+async function compresserImage(fichier: File): Promise<File> {
+  const url = URL.createObjectURL(fichier);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+
+    const facteur = Math.min(1, DIMENSION_MAXIMALE / Math.max(image.naturalWidth, image.naturalHeight));
+    const largeur = Math.max(1, Math.round(image.naturalWidth * facteur));
+    const hauteur = Math.max(1, Math.round(image.naturalHeight * facteur));
+    const canvas = document.createElement("canvas");
+    canvas.width = largeur;
+    canvas.height = hauteur;
+    const contexte = canvas.getContext("2d");
+    if (!contexte) throw new Error("Impossible de préparer l'image");
+    contexte.drawImage(image, 0, 0, largeur, hauteur);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((resultat) => {
+        if (resultat) resolve(resultat);
+        else reject(new Error("Impossible de compresser l'image"));
+      }, "image/jpeg", QUALITE_JPEG);
+    });
+
+    const nom = fichier.name.replace(/\.[^.]+$/, "") || "photo";
+    return new File([blob], `${nom}.jpg`, { type: "image/jpeg" });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export function PhotoUploadField({ valeurInitiale }: { valeurInitiale?: string }) {
   const [url, setUrl] = useState(valeurInitiale ?? "");
   const [apercu, setApercu] = useState<string | null>(null);
@@ -50,7 +84,8 @@ export function PhotoUploadField({ valeurInitiale }: { valeurInitiale?: string }
     setEnCours(true);
     try {
       const fichierEnvoyable = await versFichierEnvoyable(fichier);
-      const { url: nouvelleUrl } = await uploaderPhoto(fichierEnvoyable);
+      const fichierCompresse = await compresserImage(fichierEnvoyable);
+      const { url: nouvelleUrl } = await uploaderPhoto(fichierCompresse);
       setUrl(nouvelleUrl);
     } catch (err) {
       setErreur(

@@ -157,6 +157,17 @@ export function IconCamera(props: IconProps) {
   );
 }
 
+export function IconZoom(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="10.8" cy="10.8" r="5.8" />
+      <line x1="15.2" y1="15.2" x2="20" y2="20" />
+      <line x1="10.8" y1="8.3" x2="10.8" y2="13.3" />
+      <line x1="8.3" y1="10.8" x2="13.3" y2="10.8" />
+    </svg>
+  );
+}
+
 export function IconRefresh(props: IconProps) {
   return (
     <svg {...base(props)}>

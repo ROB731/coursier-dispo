@@ -20,7 +20,8 @@ const TYPES_AUTORISES: Record<string, string> = {
 // Sur les environnements sans disque persistant (Vercel), un store Vercel Blob
 // rattaché au projet expose ce token — on bascule automatiquement dessus.
 // Sinon (local, Render avec disque), on garde le stockage local existant.
-const UTILISE_BLOB = Boolean(env.BLOB_READ_WRITE_TOKEN);
+const EST_VERCEL = process.env.VERCEL === "1";
+const UTILISE_BLOB = EST_VERCEL || Boolean(env.BLOB_READ_WRITE_TOKEN);
 
 const storage = UTILISE_BLOB
   ? multer.memoryStorage()
@@ -53,6 +54,11 @@ uploadsRouter.post("/photo", upload.single("photo"), async (req, res) => {
   if (!req.file) throw new ValidationError("Aucun fichier reçu");
 
   if (UTILISE_BLOB) {
+    if (!env.BLOB_READ_WRITE_TOKEN) {
+      res.status(503).json({ error: "Stockage des photos non configuré sur Vercel" });
+      return;
+    }
+
     const { put } = await import("@vercel/blob");
     const extension = TYPES_AUTORISES[req.file.mimetype] ?? path.extname(req.file.originalname);
     const blob = await put(`${crypto.randomUUID()}${extension}`, req.file.buffer, {

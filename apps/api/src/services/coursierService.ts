@@ -21,10 +21,18 @@ export interface CreerCoursierInput {
   siteId: string;
 }
 
-async function verifierAccesCoursier(coursierId: string, entreprisesAccessibles: string[] | null) {
+async function verifierAccesCoursier(
+  coursierId: string,
+  entreprisesAccessibles: string[] | null,
+  inclureRattachementsDesactives = false
+) {
   if (entreprisesAccessibles === null) return;
   const rattachement = await prisma.coursierSite.findFirst({
-    where: { coursierId, actif: true, site: { entrepriseId: { in: entreprisesAccessibles } } },
+    where: {
+      coursierId,
+      actif: inclureRattachementsDesactives ? undefined : true,
+      site: { entrepriseId: { in: entreprisesAccessibles } },
+    },
   });
   if (!rattachement) throw new ForbiddenError("Vous ne gérez pas ce coursier");
 }
@@ -79,6 +87,20 @@ export async function reactiverCoursier(id: string, entreprisesAccessibles: stri
   if (!coursier) throw new NotFoundError("Coursier introuvable");
   await verifierAccesCoursier(id, entreprisesAccessibles);
   return prisma.coursier.update({ where: { id }, data: { statutActif: true } });
+}
+
+export async function supprimerCoursier(id: string, entreprisesAccessibles: string[] | null) {
+  const coursier = await prisma.coursier.findUnique({ where: { id } });
+  if (!coursier) throw new NotFoundError("Coursier introuvable");
+  await verifierAccesCoursier(id, entreprisesAccessibles, true);
+
+  const nombreEvenements = await prisma.evenement.count({ where: { coursierId: id } });
+  if (nombreEvenements > 0) {
+    throw new ConflictError("Ce coursier possède un historique et ne peut pas être supprimé. Désactivez-le plutôt.");
+  }
+
+  await prisma.coursier.delete({ where: { id } });
+  return { id };
 }
 
 export async function listerCoursiers(
