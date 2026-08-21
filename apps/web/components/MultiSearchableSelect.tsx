@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OptionSelect } from "./SearchableSelect";
-import { IconX } from "@/components/icons";
+import { IconCheck, IconX } from "@/components/icons";
 
 export function MultiSearchableSelect({
   options,
@@ -32,10 +32,10 @@ export function MultiSearchableSelect({
     return () => document.removeEventListener("mousedown", onClicExterieur);
   }, []);
 
-  const optionsDisponibles = useMemo(() => {
+  const optionsAffichees = useMemo(() => {
     const q = recherche.trim().toLowerCase();
-    return options.filter((o) => !valeurs.includes(o.value) && o.label.toLowerCase().includes(q));
-  }, [options, valeurs, recherche]);
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, recherche]);
 
   const selections = valeurs.map((v) => options.find((o) => o.value === v)).filter((o): o is OptionSelect => Boolean(o));
 
@@ -46,6 +46,17 @@ export function MultiSearchableSelect({
 
   function retirer(value: string) {
     onChange(valeurs.filter((v) => v !== value));
+  }
+
+  // Un clic sur une suggestion bascule son état : l'ajoute si absente, la
+  // retire directement si déjà sélectionnée — pas besoin de chercher le
+  // petit bouton "×" sur l'étiquette pour enlever quelque chose déjà ajouté.
+  function basculer(value: string) {
+    if (valeurs.includes(value)) {
+      retirer(value);
+    } else {
+      ajouter(value);
+    }
   }
 
   return (
@@ -108,19 +119,34 @@ export function MultiSearchableSelect({
             overflowY: "auto",
           }}
         >
-          {optionsDisponibles.length === 0 && (
+          {optionsAffichees.length === 0 && (
             <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", padding: "0.4rem" }}>Aucun résultat.</p>
           )}
-          {optionsDisponibles.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => ajouter(o.value)}
-              style={{ display: "block", width: "100%", textAlign: "left", padding: "0.5rem 0.6rem", borderRadius: "var(--radius-sm)" }}
-            >
-              {o.label}
-            </button>
-          ))}
+          {optionsAffichees.map((o) => {
+            const selectionne = valeurs.includes(o.value);
+            return (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => basculer(o.value)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "0.5rem",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "0.5rem 0.6rem",
+                  borderRadius: "var(--radius-sm)",
+                  color: selectionne ? "var(--color-primary)" : undefined,
+                  background: selectionne ? "var(--color-primary-soft)" : undefined,
+                }}
+              >
+                {o.label}
+                {selectionne && <IconCheck size={15} />}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
