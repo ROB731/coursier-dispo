@@ -74,7 +74,7 @@ export default function MonProfilPage() {
   if (chargement || !utilisateur) return null;
 
   return (
-    <div className="container" style={{ maxWidth: "30rem" }}>
+    <div className="container">
       <h1>Mon profil</h1>
 
       <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
@@ -83,66 +83,68 @@ export default function MonProfilPage() {
         </div>
       </div>
 
-      <form onSubmit={enregistrerInfos} className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
-        <h2 style={{ marginTop: 0 }}>Mes informations</h2>
-        <div className="form-field">
-          <label htmlFor="nomComplet">Nom complet *</label>
-          <input id="nomComplet" name="nomComplet" required defaultValue={utilisateur.nomComplet} />
-        </div>
-        <div className="form-field">
-          <label htmlFor="telephone">Téléphone</label>
-          <input id="telephone" name="telephone" defaultValue={utilisateur.telephone ?? ""} />
-        </div>
-        <div className="form-field">
-          <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" defaultValue={utilisateur.email ?? ""} />
-        </div>
-        {erreurInfos && <p className="form-error">{erreurInfos}</p>}
-        <button type="submit" className="btn btn-primary" disabled={enCoursInfos}>
-          {enCoursInfos ? "Enregistrement…" : "Enregistrer"}
-        </button>
-      </form>
-
-      <form onSubmit={changerMotDePasse} className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
-        <h2 style={{ marginTop: 0 }}>Changer mon mot de passe</h2>
-        <div className="form-field">
-          <label htmlFor="motDePasseActuel">Mot de passe actuel *</label>
-          <input id="motDePasseActuel" name="motDePasseActuel" type="password" required />
-        </div>
-        <div className="form-field">
-          <label htmlFor="nouveauMotDePasse">Nouveau mot de passe *</label>
-          <input id="nouveauMotDePasse" name="nouveauMotDePasse" type="password" required minLength={4} />
-        </div>
-        <div className="form-field">
-          <label htmlFor="confirmation">Confirmer le nouveau mot de passe *</label>
-          <input id="confirmation" name="confirmation" type="password" required minLength={4} />
-        </div>
-        {erreurMdp && <p className="form-error">{erreurMdp}</p>}
-        <button type="submit" className="btn btn-primary" disabled={enCoursMdp}>
-          {enCoursMdp ? "Enregistrement…" : "Changer le mot de passe"}
-        </button>
-      </form>
-
-      {utilisateur.role !== "SUPER_ADMIN" && (
-        <div className="card" style={{ padding: "1.25rem" }}>
-          <h2 style={{ marginTop: 0 }}>Affichage du tableau de bord</h2>
-          <div className="form-field" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <input
-              id="afficherStats"
-              type="checkbox"
-              style={{ width: "auto", minHeight: "auto" }}
-              checked={afficherStats}
-              onChange={(e) => surChangementStats(e.target.checked)}
-            />
-            <label htmlFor="afficherStats" style={{ marginBottom: 0 }}>
-              Afficher les indicateurs de gestion (sites, comptes, à la porte) sur mon tableau de bord
-            </label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem", alignItems: "flex-start" }}>
+        <form onSubmit={enregistrerInfos} className="card" style={{ padding: "1.25rem", flex: "1 1 20rem" }}>
+          <h2 style={{ marginTop: 0 }}>Mes informations</h2>
+          <div className="form-field">
+            <label htmlFor="nomComplet">Nom complet *</label>
+            <input id="nomComplet" name="nomComplet" required defaultValue={utilisateur.nomComplet} />
           </div>
-          <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginBottom: 0 }}>
-            Masqués par défaut pour garder l'essentiel visible en un coup d'œil : qui est disponible maintenant.
-          </p>
-        </div>
-      )}
+          <div className="form-field">
+            <label htmlFor="telephone">Téléphone</label>
+            <input id="telephone" name="telephone" defaultValue={utilisateur.telephone ?? ""} />
+          </div>
+          <div className="form-field">
+            <label htmlFor="email">Email</label>
+            <input id="email" name="email" type="email" defaultValue={utilisateur.email ?? ""} />
+          </div>
+          {erreurInfos && <p className="form-error">{erreurInfos}</p>}
+          <button type="submit" className="btn btn-primary" disabled={enCoursInfos}>
+            {enCoursInfos ? "Enregistrement…" : "Enregistrer"}
+          </button>
+        </form>
+
+        <form onSubmit={changerMotDePasse} className="card" style={{ padding: "1.25rem", flex: "1 1 20rem" }}>
+          <h2 style={{ marginTop: 0 }}>Changer mon mot de passe</h2>
+          <div className="form-field">
+            <label htmlFor="motDePasseActuel">Mot de passe actuel *</label>
+            <input id="motDePasseActuel" name="motDePasseActuel" type="password" required />
+          </div>
+          <div className="form-field">
+            <label htmlFor="nouveauMotDePasse">Nouveau mot de passe *</label>
+            <input id="nouveauMotDePasse" name="nouveauMotDePasse" type="password" required minLength={4} />
+          </div>
+          <div className="form-field">
+            <label htmlFor="confirmation">Confirmer le nouveau mot de passe *</label>
+            <input id="confirmation" name="confirmation" type="password" required minLength={4} />
+          </div>
+          {erreurMdp && <p className="form-error">{erreurMdp}</p>}
+          <button type="submit" className="btn btn-primary" disabled={enCoursMdp}>
+            {enCoursMdp ? "Enregistrement…" : "Changer le mot de passe"}
+          </button>
+        </form>
+
+        {utilisateur.role !== "SUPER_ADMIN" && (
+          <div className="card" style={{ padding: "1.25rem", flex: "1 1 20rem" }}>
+            <h2 style={{ marginTop: 0 }}>Affichage du tableau de bord</h2>
+            <div className="form-field" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <input
+                id="afficherStats"
+                type="checkbox"
+                style={{ width: "auto", minHeight: "auto" }}
+                checked={afficherStats}
+                onChange={(e) => surChangementStats(e.target.checked)}
+              />
+              <label htmlFor="afficherStats" style={{ marginBottom: 0 }}>
+                Afficher les indicateurs de gestion (sites, comptes, à la porte) sur mon tableau de bord
+              </label>
+            </div>
+            <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginBottom: 0 }}>
+              Masqués par défaut pour garder l'essentiel visible en un coup d'œil : qui est disponible maintenant.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
