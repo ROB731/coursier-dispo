@@ -23,11 +23,13 @@ const loginLimiter = rateLimit({
 const loginSchema = z.object({
   identifiant: z.string().min(1),
   motDePasse: z.string().min(1),
-  seSouvenir: z.boolean().optional().default(false),
 });
 
-const DOUZE_HEURES_MS = 12 * 60 * 60 * 1000;
-const TRENTE_JOURS_MS = 30 * 24 * 60 * 60 * 1000;
+// Pas un poste de travail partagé — la connexion reste valide plusieurs mois
+// pour éviter d'avoir à se reconnecter chaque jour. Doit correspondre à
+// JWT_EXPIRATION (le cookie ne sert à rien plus longtemps que le jeton qu'il
+// contient).
+const DUREE_SESSION_MS = 90 * 24 * 60 * 60 * 1000;
 
 // En développement, web et API partagent le même hôte ("localhost", ports
 // différents) — SameSite=Strict suffit. En production, web (Vercel) et API
@@ -41,12 +43,12 @@ const OPTIONS_COOKIE_SESSION = {
 };
 
 authRouter.post("/login", loginLimiter, validateBody(loginSchema), async (req, res) => {
-  const { identifiant, motDePasse, seSouvenir } = req.body;
+  const { identifiant, motDePasse } = req.body;
   const { token, utilisateur } = await login(identifiant, motDePasse);
 
   res.cookie("session", token, {
     ...OPTIONS_COOKIE_SESSION,
-    maxAge: seSouvenir ? TRENTE_JOURS_MS : DOUZE_HEURES_MS,
+    maxAge: DUREE_SESSION_MS,
   });
 
   // Filet de sécurité en environnement serverless (pas de process persistant

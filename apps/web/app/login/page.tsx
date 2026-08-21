@@ -11,7 +11,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [identifiant, setIdentifiant] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
-  const [seSouvenir, setSeSouvenir] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
@@ -23,7 +22,6 @@ export default function LoginPage() {
       await api.post<{ utilisateur: Utilisateur }>("/api/auth/login", {
         identifiant,
         motDePasse,
-        seSouvenir,
       });
       router.push("/admin");
     } catch (err) {
@@ -107,18 +105,6 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 required
               />
-            </div>
-            <div className="form-field" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <input
-                id="seSouvenir"
-                type="checkbox"
-                style={{ width: "auto", minHeight: "auto" }}
-                checked={seSouvenir}
-                onChange={(e) => setSeSouvenir(e.target.checked)}
-              />
-              <label htmlFor="seSouvenir" style={{ marginBottom: 0 }}>
-                Se souvenir de moi
-              </label>
             </div>
             {erreur && <p className="form-error">{erreur}</p>}
             <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: "0.5rem" }} disabled={enCours}>
