@@ -186,6 +186,17 @@ button {
   border-color: var(--color-primary);
 }
 
+.btn-danger {
+  background: transparent;
+  color: var(--color-non-disponible);
+  border-color: var(--color-non-disponible);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-non-disponible);
+  color: #ffffff;
+}
+
 .btn-etat-entree {
   background: var(--color-disponible);
   color: #ffffff;

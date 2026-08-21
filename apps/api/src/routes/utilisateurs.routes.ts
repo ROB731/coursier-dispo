@@ -14,6 +14,7 @@ import {
   modifierUtilisateur,
   reactiverUtilisateur,
   reinitialiserMotDePasse,
+  supprimerUtilisateur,
 } from "../services/utilisateurService";
 
 export const utilisateursRouter = Router();
@@ -102,5 +103,17 @@ utilisateursRouter.post(
   journaliser("Réactivation d'un compte", (req) => req.params.id),
   async (req, res) => {
     res.json(await reactiverUtilisateur(req.params.id, req.utilisateur!.role, req.entreprisesAccessibles ?? null));
+  }
+);
+
+utilisateursRouter.delete(
+  "/:id",
+  journaliser("Suppression d'un compte", (req) => req.params.id),
+  async (req, res) => {
+    if (req.params.id === req.utilisateur!.id) {
+      throw new ValidationError("Vous ne pouvez pas supprimer votre propre compte");
+    }
+    await supprimerUtilisateur(req.params.id, req.utilisateur!.role, req.entreprisesAccessibles ?? null);
+    res.status(204).send();
   }
 );

@@ -44,6 +44,13 @@ export default function ComptesPage() {
     recharger();
   }
 
+  async function supprimer(c: Compte) {
+    if (!window.confirm(`Supprimer définitivement le compte "${c.nomComplet}" ? Cette action est irréversible.`)) return;
+    await api.delete(`/api/utilisateurs/${c.id}`);
+    showToast("Compte supprimé");
+    recharger();
+  }
+
   function ouvrirCreation() {
     setCompteEnEdition(null);
     setModalOuvert(true);
@@ -96,6 +103,11 @@ export default function ComptesPage() {
                 <button type="button" className="btn btn-secondary" onClick={() => basculerActivation(c)}>
                   {c.actif ? "Désactiver" : "Réactiver"}
                 </button>
+                {!c.actif && (
+                  <button type="button" className="btn btn-danger" onClick={() => supprimer(c)}>
+                    Supprimer
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -137,6 +149,11 @@ export default function ComptesPage() {
                       <button type="button" className="btn btn-secondary" onClick={() => basculerActivation(c)}>
                         {c.actif ? "Désactiver" : "Réactiver"}
                       </button>
+                      {!c.actif && (
+                        <button type="button" className="btn btn-danger" onClick={() => supprimer(c)}>
+                          Supprimer
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

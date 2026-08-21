@@ -212,6 +212,27 @@ export async function reactiverUtilisateur(id: string, roleAppelant: RoleUtilisa
   return prisma.utilisateur.update({ where: { id }, data: { actif: true } });
 }
 
+/** Suppression définitive — uniquement possible sur un compte déjà désactivé. */
+export async function supprimerUtilisateur(id: string, roleAppelant: RoleUtilisateur, entreprisesAccessibles: string[] | null) {
+  const utilisateur = await prisma.utilisateur.findUnique({ where: { id } });
+  if (!utilisateur) throw new NotFoundError("Compte introuvable");
+
+  await verifierAccesCompteCible(id, roleAppelant, entreprisesAccessibles);
+
+  if (utilisateur.actif) {
+    throw new ValidationError("Le compte doit d'abord être désactivé avant de pouvoir être supprimé");
+  }
+
+  if (utilisateur.role === "DIRECTEUR") {
+    const gerantesRattachees = await prisma.utilisateur.count({ where: { directeurId: id } });
+    if (gerantesRattachees > 0) {
+      throw new ValidationError("Ce directeur a encore des comptes Gérant(e) rattachés — réaffectez-les avant de supprimer");
+    }
+  }
+
+  await prisma.utilisateur.delete({ where: { id } });
+}
+
 export async function listerUtilisateurs(entreprisesAccessibles: string[] | null) {
   if (entreprisesAccessibles === null) {
     return prisma.utilisateur.findMany({ select: SELECT_UTILISATEUR, orderBy: { nomComplet: "asc" } });
