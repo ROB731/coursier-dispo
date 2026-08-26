@@ -382,6 +382,51 @@ label {
   background: var(--color-bg);
 }
 
+.historique-filtres {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.historique-filtres-principaux {
+  display: grid;
+  grid-template-columns: minmax(14rem, 2fr) repeat(2, minmax(12rem, 1fr));
+  gap: 0.6rem;
+}
+
+.historique-navigation-dates {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.historique-navigation-dates .btn {
+  flex-shrink: 0;
+  padding: 0.6rem;
+}
+
+@media (max-width: 760px) {
+  .historique-filtres-principaux {
+    grid-template-columns: 1fr;
+  }
+
+  .historique-plage-dates {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .historique-plage-dates label {
+    flex: 1 1 12rem;
+  }
+
+  .historique-plage-dates input[type="datetime-local"] {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
 .historique-plage-dates label {
   display: flex;
   align-items: center;
