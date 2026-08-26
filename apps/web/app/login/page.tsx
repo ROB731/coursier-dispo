@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/apiClient";
 import { Utilisateur } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandIllustration } from "@/components/BrandIllustration";
+import { IconArrowRight } from "@/components/icons";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +14,13 @@ export default function LoginPage() {
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const [terminalAccueilId, setTerminalAccueilId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get<{ pageAccueil?: string; terminalAccueilId?: string | null }>("/api/configuration/accueil").then((configuration) => {
+      if (configuration.pageAccueil === "BORNE" && configuration.terminalAccueilId) setTerminalAccueilId(configuration.terminalAccueilId);
+    }).catch(() => {});
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -111,6 +119,15 @@ export default function LoginPage() {
               {enCours ? "Connexion…" : "Se connecter"}
             </button>
           </form>
+          {terminalAccueilId && (
+            <a
+              href={`/borne/${terminalAccueilId}`}
+              className="btn-text"
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", marginTop: "1rem" }}
+            >
+              Accéder à la borne d'accueil <IconArrowRight size={14} />
+            </a>
+          )}
         </div>
       </section>
 

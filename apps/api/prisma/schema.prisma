@@ -193,6 +193,7 @@ model Terminal {
 
   evenements         Evenement[]
   configurationAccueil ConfigurationPlateforme?
+  pushSubscriptions  PushSubscriptionBorne[]
 
   @@index([siteId])
 }
@@ -302,6 +303,18 @@ model PushSubscription {
   createdAt     DateTime    @default(now())
 }
 
+model PushSubscriptionBorne {
+  id         String   @id @default(uuid())
+  terminal   Terminal @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  terminalId String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+
+  @@index([terminalId])
+}
+
 model Notification {
   id            String            @id @default(uuid())
   utilisateur   Utilisateur       @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
@@ -335,6 +348,7 @@ model ConfigurationPlateforme {
   pageAccueil         TypePageAccueil @default(CONNEXION)
   terminalAccueil     Terminal?       @relation(fields: [terminalAccueilId], references: [id], onDelete: SetNull)
   terminalAccueilId   String?         @unique
+  notificationsBorneActives Boolean    @default(false)
   updatedAt           DateTime        @updatedAt
 }
 

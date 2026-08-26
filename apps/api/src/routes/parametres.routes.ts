@@ -45,6 +45,7 @@ parametresRouter.get("/accueil", async (_req, res) => {
 const accueilSchema = z.object({
   pageAccueil: z.enum(["CONNEXION", "BORNE"]),
   terminalAccueilId: z.string().uuid().nullable(),
+  notificationsBorneActives: z.boolean(),
 });
 
 parametresRouter.patch(

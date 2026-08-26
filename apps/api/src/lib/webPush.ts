@@ -30,7 +30,9 @@ export async function envoyerPush(
     // (désinstallation, changement de navigateur…) — inutile de réessayer,
     // on le retire pour ne pas accumuler des adresses mortes indéfiniment.
     if (statusCode === 404 || statusCode === 410) {
-      await prisma.pushSubscription.delete({ where: { id: subscription.id } }).catch(() => {});
+      await prisma.pushSubscription.delete({ where: { id: subscription.id } }).catch(async () => {
+        await prisma.pushSubscriptionBorne.delete({ where: { id: subscription.id } }).catch(() => {});
+      });
       return;
     }
     console.error("Échec d'envoi Web Push", err);

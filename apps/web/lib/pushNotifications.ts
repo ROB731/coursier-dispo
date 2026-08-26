@@ -61,6 +61,23 @@ export async function activerNotificationsPush(): Promise<boolean> {
   return true;
 }
 
+export async function activerNotificationsPushBorne(terminalId: string): Promise<boolean> {
+  if (!pushDisponible()) return false;
+
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!vapidPublicKey) return false;
+
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") return false;
+
+  const registration = (await navigator.serviceWorker.getRegistration()) ?? (await enregistrerServiceWorker());
+  if (!registration) return false;
+
+  const subscription = await obtenirAbonnement(registration, vapidPublicKey);
+  await api.post("/api/notifications/borne/subscribe", { ...subscription.toJSON(), terminalId });
+  return true;
+}
+
 /** Re-enregistre l'abonnement push côté serveur à chaque chargement de page,
  * sans redemander la permission (déjà accordée) — un abonnement navigateur
  * peut être renouvelé/changé silencieusement avec le temps ; sans ce rappel

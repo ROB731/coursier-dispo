@@ -8,8 +8,9 @@ import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { RecapDetailsModal } from "@/components/RecapDetailsModal";
 import { Toast } from "@/components/Toast";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { IconBan, IconChevronDown, IconDownload, IconLogIn } from "@/components/icons";
+import { IconBan, IconBell, IconChevronDown, IconDownload, IconLogIn } from "@/components/icons";
 import { Modal } from "@/components/Modal";
+import { activerNotificationsPushBorne, pushDisponible } from "@/lib/pushNotifications";
 
 interface ReponseBorneCoursiers {
   terminal: { id: string; siteId: string; nom: string };
@@ -40,6 +41,9 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const [detailsOuvert, setDetailsOuvert] = useState(false);
   const [invitationInstallation, setInvitationInstallation] = useState<EvenementInstallationPWA | null>(null);
   const [desactivation, setDesactivation] = useState<{ parNom: string | null; le: string | null } | null>(null);
+  const [notificationsBorneActives, setNotificationsBorneActives] = useState(false);
+  const [notificationsActivees, setNotificationsActivees] = useState(false);
+  const [activationNotificationsEnCours, setActivationNotificationsEnCours] = useState(false);
   const [afficherRemonter, setAfficherRemonter] = useState(false);
   const zoneDefilementRef = useRef<HTMLDivElement>(null);
 
@@ -82,6 +86,23 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       setErreur(err instanceof ApiError ? err.message : "Point indisponible — vérifiez la connexion");
     }
   }, [terminalId]);
+
+  useEffect(() => {
+    api.get<{ notificationsBorneActives?: boolean }>("/api/configuration/accueil")
+      .then((configuration) => setNotificationsBorneActives(Boolean(configuration.notificationsBorneActives)))
+      .catch(() => {});
+  }, []);
+
+  async function activerNotificationsBorne() {
+    setActivationNotificationsEnCours(true);
+    try {
+      setNotificationsActivees(await activerNotificationsPushBorne(terminalId));
+    } catch (err) {
+      setErreur(err instanceof ApiError ? err.message : "Impossible d'activer les notifications");
+    } finally {
+      setActivationNotificationsEnCours(false);
+    }
+  }
 
   useEffect(() => {
     chargerTout();
@@ -199,6 +220,19 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           <ConnectionStatus />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          {notificationsBorneActives && pushDisponible() && (
+            <button
+              type="button"
+              className="btn-text"
+              onClick={activerNotificationsBorne}
+              disabled={activationNotificationsEnCours || notificationsActivees}
+              title={notificationsActivees ? "Notifications activées" : "Activer les notifications"}
+              aria-label={notificationsActivees ? "Notifications activées" : "Activer les notifications"}
+              style={{ display: "inline-flex", alignItems: "center", padding: "0.3rem" }}
+            >
+              <IconBell size={17} />
+            </button>
+          )}
           <a
             href="/login"
             className="btn-text"

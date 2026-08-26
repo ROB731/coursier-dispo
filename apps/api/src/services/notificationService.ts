@@ -21,8 +21,15 @@ async function destinatairesDuSite(siteId: string) {
   });
 }
 
+async function abonnementsBorneDuSite(siteId: string) {
+  return prisma.pushSubscriptionBorne.findMany({
+    where: { terminal: { siteId, actif: true } },
+  });
+}
+
 async function notifier(siteId: string, params: { type: "COURSIER_ARRIVE" | "AUCUN_DISPONIBLE"; coursierId?: string; message: string; titre: string }) {
   const destinataires = await destinatairesDuSite(siteId);
+  const abonnementsBorne = await abonnementsBorneDuSite(siteId);
 
   await Promise.all(
     destinataires.map(async (utilisateur) => {
@@ -41,6 +48,12 @@ async function notifier(siteId: string, params: { type: "COURSIER_ARRIVE" | "AUC
         )
       );
     })
+  );
+
+  await Promise.all(
+    abonnementsBorne.map((sub) =>
+      envoyerPush(sub, { titre: params.titre, corps: params.message })
+    )
   );
 }
 

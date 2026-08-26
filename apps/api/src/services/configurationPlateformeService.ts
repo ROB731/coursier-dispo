@@ -8,12 +8,19 @@ export async function getConfigurationAccueil() {
     include: { terminalAccueil: { select: { id: true, nom: true, actif: true, siteId: true } } },
   });
 
-  return configuration ?? { id: "global", pageAccueil: "CONNEXION", terminalAccueilId: null, terminalAccueil: null };
+  return configuration ?? {
+    id: "global",
+    pageAccueil: "CONNEXION",
+    terminalAccueilId: null,
+    terminalAccueil: null,
+    notificationsBorneActives: false,
+  };
 }
 
 export async function modifierConfigurationAccueil(input: {
   pageAccueil: TypePageAccueil;
   terminalAccueilId: string | null;
+  notificationsBorneActives: boolean;
 }) {
   if (input.pageAccueil === "BORNE") {
     if (!input.terminalAccueilId) throw new ConflictError("Sélectionnez une borne pour la page d'accueil");
@@ -27,10 +34,12 @@ export async function modifierConfigurationAccueil(input: {
       id: "global",
       pageAccueil: input.pageAccueil,
       terminalAccueilId: input.pageAccueil === "BORNE" ? input.terminalAccueilId : null,
+      notificationsBorneActives: input.notificationsBorneActives,
     },
     update: {
       pageAccueil: input.pageAccueil,
       terminalAccueilId: input.pageAccueil === "BORNE" ? input.terminalAccueilId : null,
+      notificationsBorneActives: input.notificationsBorneActives,
     },
     include: { terminalAccueil: { select: { id: true, nom: true, actif: true, siteId: true } } },
   });

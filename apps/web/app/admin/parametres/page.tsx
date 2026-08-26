@@ -17,6 +17,7 @@ interface Parametres {
 interface ConfigurationAccueil {
   pageAccueil: "CONNEXION" | "BORNE";
   terminalAccueilId: string | null;
+  notificationsBorneActives: boolean;
 }
 
 interface Terminal {
@@ -86,7 +87,11 @@ export default function ParametresPage() {
     const pageAccueil = form.get("pageAccueil") as ConfigurationAccueil["pageAccueil"];
     const terminalAccueilId = (form.get("terminalAccueilId") as string) || null;
     try {
-      const mis = await api.patch<ConfigurationAccueil>("/api/parametres/accueil", { pageAccueil, terminalAccueilId });
+      const mis = await api.patch<ConfigurationAccueil>("/api/parametres/accueil", {
+        pageAccueil,
+        terminalAccueilId,
+        notificationsBorneActives: form.get("notificationsBorneActives") === "on",
+      });
       setConfigurationAccueil(mis);
       showToast("Page d'accueil enregistrée");
     } catch (err) {
@@ -109,6 +114,18 @@ export default function ParametresPage() {
               <option value="CONNEXION">Page de connexion</option>
               <option value="BORNE">Une borne</option>
             </select>
+          </div>
+          <div className="form-field" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <input
+              id="notificationsBorneActives"
+              name="notificationsBorneActives"
+              type="checkbox"
+              style={{ width: "auto", minHeight: "auto" }}
+              defaultChecked={configurationAccueil.notificationsBorneActives}
+            />
+            <label htmlFor="notificationsBorneActives" style={{ marginBottom: 0 }}>
+              Autoriser les notifications sur les bornes
+            </label>
           </div>
           <div className="form-field">
             <label htmlFor="terminalAccueilId">Borne d'accueil</label>
