@@ -6,7 +6,7 @@ import { EvenementHistorique, Site, TypeEvenement } from "@/lib/types";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { usePagination } from "@/lib/usePagination";
 import { Pagination } from "@/components/Pagination";
-import { IconArrowLeft, IconArrowRight } from "@/components/icons";
+import { IconArrowLeft, IconArrowRight, IconDownload, IconPrinter } from "@/components/icons";
 
 const LIBELLE_TYPE: Record<TypeEvenement, string> = {
   ENTREE: "Entrée",
@@ -46,6 +46,10 @@ function finJour(date: Date): Date {
   const resultat = new Date(date);
   resultat.setHours(23, 59, 59, 999);
   return resultat;
+}
+
+function csvCellule(valeur: string): string {
+  return `"${valeur.replace(/"/g, '""')}"`;
 }
 
 export default function HistoriquePage() {
@@ -112,14 +116,47 @@ export default function HistoriquePage() {
     setJusqua(valeurDateLocale(fin));
   }
 
+  function exporterCsv() {
+    const entetes = ["Date / Heure", "Coursier", "Code", "Type", "Site", "Origine", "Détails"];
+    const lignes = evenements.map((e) => [
+      new Date(e.horodatage).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }),
+      `${e.coursier.prenom} ${e.coursier.nom}`,
+      e.coursier.code,
+      LIBELLE_TYPE[e.type],
+      e.site.nom,
+      `${LIBELLE_SOURCE[e.source]}${e.terminal ? ` · ${e.terminal.nom}` : ""}${e.creeParUtilisateur ? ` · ${e.creeParUtilisateur.nomComplet}` : ""}`,
+      e.evenementAnnule ? `Annule : ${LIBELLE_TYPE[e.evenementAnnule.type]}` : "",
+    ]);
+    const contenu = [entetes, ...lignes].map((ligne) => ligne.map(csvCellule).join(";")).join("\r\n");
+    const fichier = new Blob(["\uFEFF", contenu], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(fichier);
+    const lien = document.createElement("a");
+    lien.href = url;
+    lien.download = `historique-${depuis.slice(0, 10)}.csv`;
+    lien.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function imprimer() {
+    window.print();
+  }
+
   const { page, setPage, nbPages, pageItems, decalage } = usePagination(evenements, 200);
 
   return (
-    <div className="container">
+    <div className="container historique-page">
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
         <h1 style={{ margin: 0 }}>
           Historique {!chargement && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>({evenements.length})</span>}
         </h1>
+        <div className="historique-actions">
+          <button type="button" className="btn btn-secondary" onClick={exporterCsv} disabled={chargement || evenements.length === 0}>
+            <IconDownload size={16} /> Exporter
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={imprimer} disabled={chargement || evenements.length === 0}>
+            <IconPrinter size={16} /> Imprimer
+          </button>
+        </div>
       </div>
 
       <div className="historique-filtres">

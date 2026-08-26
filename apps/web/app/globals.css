@@ -402,6 +402,12 @@ label {
   gap: 0.6rem;
 }
 
+.historique-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
 .historique-navigation-dates .btn {
   flex-shrink: 0;
   padding: 0.6rem;
@@ -424,6 +430,38 @@ label {
   .historique-plage-dates input[type="datetime-local"] {
     min-width: 0;
     width: 100%;
+  }
+}
+
+@media print {
+  .top-bar,
+  .admin-sidebar,
+  .historique-filtres,
+  .historique-actions,
+  .pagination {
+    display: none !important;
+  }
+
+  body,
+  .app-shell,
+  .app-shell-body,
+  .scroll-region {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .historique-page {
+    max-width: none;
+    padding: 0;
+  }
+
+  .table-wrap-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .table-wrap-scroll .data-table thead th {
+    position: static;
   }
 }
 

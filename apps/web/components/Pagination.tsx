@@ -6,7 +6,7 @@ export function Pagination({ page, nbPages, onChange }: { page: number; nbPages:
   if (nbPages <= 1) return null;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem", marginTop: "1rem" }}>
+    <div className="pagination" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem", marginTop: "1rem" }}>
       <button
         type="button"
         className="btn btn-secondary"

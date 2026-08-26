@@ -148,6 +148,16 @@ export function IconDownload(props: IconProps) {
   );
 }
 
+export function IconPrinter(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <polyline points="6 9 6 3 18 3 18 9" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+      <rect x="6" y="14" width="12" height="7" />
+    </svg>
+  );
+}
+
 export function IconLogIn(props: IconProps) {
   return (
     <svg {...base(props)}>
