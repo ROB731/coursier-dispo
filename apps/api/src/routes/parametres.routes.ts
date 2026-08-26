@@ -7,6 +7,7 @@ import { chargerPerimetre } from "../middleware/perimetre";
 import { journaliser } from "../middleware/journalActivite";
 import { getParametres, modifierParametres } from "../services/parametresService";
 import { ValidationError } from "../lib/errors";
+import { getConfigurationAccueil, modifierConfigurationAccueil } from "../services/configurationPlateformeService";
 
 export const parametresRouter = Router();
 
@@ -34,5 +35,24 @@ parametresRouter.patch(
   async (req, res) => {
     const { entrepriseId, ...donnees } = req.body;
     res.json(await modifierParametres(entrepriseId, donnees, req.entreprisesAccessibles ?? null, req.utilisateur!.role));
+  }
+);
+
+parametresRouter.get("/accueil", async (_req, res) => {
+  res.json(await getConfigurationAccueil());
+});
+
+const accueilSchema = z.object({
+  pageAccueil: z.enum(["CONNEXION", "BORNE"]),
+  terminalAccueilId: z.string().uuid().nullable(),
+});
+
+parametresRouter.patch(
+  "/accueil",
+  requireRole("SUPER_ADMIN"),
+  validateBody(accueilSchema),
+  journaliser("Modification de la page d'accueil"),
+  async (req, res) => {
+    res.json(await modifierConfigurationAccueil(req.body));
   }
 );

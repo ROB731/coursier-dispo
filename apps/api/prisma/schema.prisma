@@ -52,6 +52,11 @@ enum TypeNotification {
   AUCUN_DISPONIBLE
 }
 
+enum TypePageAccueil {
+  CONNEXION
+  BORNE
+}
+
 // ---------- Entreprises (tenants) ----------
 
 model Entreprise {
@@ -187,6 +192,7 @@ model Terminal {
   desactiveLe        DateTime?
 
   evenements         Evenement[]
+  configurationAccueil ConfigurationPlateforme?
 
   @@index([siteId])
 }
@@ -320,6 +326,16 @@ model ParametresApplication {
   fenetreAnnulationBorneMinutes Int        @default(2)
   intervallePollingSecondes     Int        @default(7)
   clotureAutoActive             Boolean    @default(true)
+}
+
+// Configuration plateforme unique : la page d'accueil est choisie avant
+// toute authentification et ne dépend donc pas d'une entreprise.
+model ConfigurationPlateforme {
+  id                  String          @id @default("global")
+  pageAccueil         TypePageAccueil @default(CONNEXION)
+  terminalAccueil     Terminal?       @relation(fields: [terminalAccueilId], references: [id], onDelete: SetNull)
+  terminalAccueilId   String?         @unique
+  updatedAt           DateTime        @updatedAt
 }
 
 // ---------- Employés (registre de présence/absence) ----------

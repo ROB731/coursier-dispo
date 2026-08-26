@@ -8,7 +8,7 @@ import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { RecapDetailsModal } from "@/components/RecapDetailsModal";
 import { Toast } from "@/components/Toast";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { IconBan, IconChevronDown, IconDownload } from "@/components/icons";
+import { IconBan, IconChevronDown, IconDownload, IconLogIn } from "@/components/icons";
 import { Modal } from "@/components/Modal";
 
 interface ReponseBorneCoursiers {
@@ -199,6 +199,15 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           <ConnectionStatus />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <a
+            href="/login"
+            className="btn-text"
+            aria-label="Ouvrir la connexion"
+            title="Connexion"
+            style={{ display: "inline-flex", alignItems: "center", padding: "0.3rem" }}
+          >
+            <IconLogIn size={17} />
+          </a>
           {invitationInstallation && (
             <button
               type="button"

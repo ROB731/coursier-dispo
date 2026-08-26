@@ -148,6 +148,16 @@ export function IconDownload(props: IconProps) {
   );
 }
 
+export function IconLogIn(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M10 17l5-5-5-5" />
+      <line x1="15" y1="12" x2="3" y2="12" />
+      <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
+    </svg>
+  );
+}
+
 export function IconCamera(props: IconProps) {
   return (
     <svg {...base(props)}>

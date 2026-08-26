@@ -14,6 +14,18 @@ interface Parametres {
   clotureAutoActive: boolean;
 }
 
+interface ConfigurationAccueil {
+  pageAccueil: "CONNEXION" | "BORNE";
+  terminalAccueilId: string | null;
+}
+
+interface Terminal {
+  id: string;
+  nom: string;
+  actif: boolean;
+  site: { nom: string };
+}
+
 export default function ParametresPage() {
   const { showToast } = useToast();
   const { utilisateur } = useUtilisateur();
@@ -23,13 +35,19 @@ export default function ParametresPage() {
   const [parametres, setParametres] = useState<Parametres | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const [configurationAccueil, setConfigurationAccueil] = useState<ConfigurationAccueil | null>(null);
+  const [terminaux, setTerminaux] = useState<Terminal[]>([]);
+  const [enregistrementAccueil, setEnregistrementAccueil] = useState(false);
 
   useEffect(() => {
     api.get<Entreprise[]>("/api/entreprises").then((liste) => {
       setEntreprises(liste);
       setEntrepriseId(liste[0]?.id ?? "");
     });
-  }, []);
+    if (!estSuperAdmin) return;
+    api.get<ConfigurationAccueil>("/api/parametres/accueil").then(setConfigurationAccueil);
+    api.get<Terminal[]>("/api/terminaux").then(setTerminaux);
+  }, [estSuperAdmin]);
 
   useEffect(() => {
     if (!entrepriseId) return;
@@ -59,9 +77,62 @@ export default function ParametresPage() {
     }
   }
 
+  async function enregistrerAccueil(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!configurationAccueil) return;
+    setEnregistrementAccueil(true);
+    setErreur(null);
+    const form = new FormData(e.currentTarget);
+    const pageAccueil = form.get("pageAccueil") as ConfigurationAccueil["pageAccueil"];
+    const terminalAccueilId = (form.get("terminalAccueilId") as string) || null;
+    try {
+      const mis = await api.patch<ConfigurationAccueil>("/api/parametres/accueil", { pageAccueil, terminalAccueilId });
+      setConfigurationAccueil(mis);
+      showToast("Page d'accueil enregistrée");
+    } catch (err) {
+      setErreur(err instanceof ApiError ? err.message : "Échec de l'enregistrement de la page d'accueil");
+    } finally {
+      setEnregistrementAccueil(false);
+    }
+  }
+
   return (
     <div className="container" style={{ maxWidth: "30rem" }}>
       <h1>Paramètres</h1>
+
+      {estSuperAdmin && configurationAccueil && (
+        <form onSubmit={enregistrerAccueil} style={{ marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.05rem" }}>Page d'accueil par défaut</h2>
+          <div className="form-field">
+            <label htmlFor="pageAccueil">Page affichée à l'ouverture du site</label>
+            <select id="pageAccueil" name="pageAccueil" defaultValue={configurationAccueil.pageAccueil}>
+              <option value="CONNEXION">Page de connexion</option>
+              <option value="BORNE">Une borne</option>
+            </select>
+          </div>
+          <div className="form-field">
+            <label htmlFor="terminalAccueilId">Borne d'accueil</label>
+            <select
+              id="terminalAccueilId"
+              name="terminalAccueilId"
+              defaultValue={configurationAccueil.terminalAccueilId ?? ""}
+            >
+              <option value="">Sélectionner une borne…</option>
+              {terminaux
+                .filter((terminal) => terminal.actif)
+                .map((terminal) => (
+                  <option key={terminal.id} value={terminal.id}>
+                    {terminal.nom} — {terminal.site.nom}
+                  </option>
+                ))}
+            </select>
+          </div>
+          {erreur && <p className="form-error">{erreur}</p>}
+          <button type="submit" className="btn btn-primary" disabled={enregistrementAccueil}>
+            {enregistrementAccueil ? "Enregistrement…" : "Enregistrer la page d'accueil"}
+          </button>
+        </form>
+      )}
 
       {entreprises.length > 1 && (
         <div className="form-field">

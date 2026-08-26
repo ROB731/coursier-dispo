@@ -43,6 +43,10 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 app.get("/", (_req, res) => res.json({ service: "dispo-coursier-api" }));
+app.get("/api/configuration/accueil", async (_req, res) => {
+  const { getConfigurationAccueil } = await import("./services/configurationPlateformeService");
+  res.json(await getConfigurationAccueil());
+});
 
 // Cross-Origin-Resource-Policy assoupli uniquement ici : les photos doivent
 // pouvoir être affichées en <img> depuis le frontend (autre origine en dev).

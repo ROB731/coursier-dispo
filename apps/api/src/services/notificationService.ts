@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { envoyerPush } from "../lib/webPush";
 
@@ -89,14 +90,37 @@ export async function enregistrerAbonnementPush(
   utilisateurId: string,
   subscription: { endpoint: string; keys: { p256dh: string; auth: string } }
 ) {
-  return prisma.pushSubscription.upsert({
-    where: { endpoint: subscription.endpoint },
-    create: {
-      utilisateurId,
-      endpoint: subscription.endpoint,
-      p256dh: subscription.keys.p256dh,
-      auth: subscription.keys.auth,
-    },
-    update: { utilisateurId },
-  });
+  const donnees = {
+    utilisateurId,
+    endpoint: subscription.endpoint,
+    p256dh: subscription.keys.p256dh,
+    auth: subscription.keys.auth,
+  };
+
+  try {
+    return await prisma.pushSubscription.upsert({
+      where: { endpoint: subscription.endpoint },
+      create: donnees,
+      update: {
+        utilisateurId,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+      },
+    });
+  } catch (err) {
+    // Deux onglets peuvent renouveler le même abonnement en même temps :
+    // si les deux upserts se présentent simultanément, le second retente en
+    // mise à jour après la création concurrente du endpoint unique.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return prisma.pushSubscription.update({
+        where: { endpoint: subscription.endpoint },
+        data: {
+          utilisateurId,
+          p256dh: subscription.keys.p256dh,
+          auth: subscription.keys.auth,
+        },
+      });
+    }
+    throw err;
+  }
 }
