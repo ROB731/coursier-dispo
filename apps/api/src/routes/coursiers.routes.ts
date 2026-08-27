@@ -21,10 +21,10 @@ export const coursiersRouter = Router();
 const typeContratEnum = z.enum(["CDI", "CDD", "STAGIAIRE", "PRESTATAIRE"]);
 
 const creerCoursierSchema = z.object({
-  code: z.string().min(1),
+  code: z.string().trim().min(1),
   photoUrl: z.string().min(1),
-  prenom: z.string().min(1),
-  nom: z.string().min(1),
+  prenom: z.string().trim().min(1),
+  nom: z.string().trim().min(1),
   telephone: z.string().optional(),
   email: z.string().email().optional(),
   dateNaissance: z.coerce.date().optional(),

@@ -5,6 +5,19 @@ import { entrepriseAccessible } from "./perimetreService";
 
 export const DELAI_ARCHIVAGE_COURSIER_JOURS = 30;
 
+function normaliserTexte(valeur: string): string {
+  return valeur
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("fr-FR");
+}
+
+function normaliserCode(code: string): string {
+  return code.trim().replace(/\s+/g, "").toLocaleUpperCase("fr-FR");
+}
+
 export interface CreerCoursierInput {
   code: string;
   photoUrl: string;
@@ -39,6 +52,31 @@ async function verifierAccesCoursier(
   if (!rattachement) throw new ForbiddenError("Vous ne gérez pas ce coursier");
 }
 
+async function verifierDoublonIdentite(
+  prenom: string,
+  nom: string,
+  entrepriseId: string,
+  coursierIdExclu?: string
+) {
+  const prenomNormalise = normaliserTexte(prenom);
+  const nomNormalise = normaliserTexte(nom);
+  const candidats = await prisma.coursier.findMany({
+    where: {
+      id: coursierIdExclu ? { not: coursierIdExclu } : undefined,
+      coursierSites: { some: { site: { entrepriseId } } },
+    },
+    select: { id: true, code: true, prenom: true, nom: true, statutActif: true },
+  });
+  const doublon = candidats.find(
+    (c) => normaliserTexte(c.prenom) === prenomNormalise && normaliserTexte(c.nom) === nomNormalise
+  );
+  if (doublon) {
+    throw new ConflictError(
+      `Un coursier porte déjà le nom « ${doublon.prenom} ${doublon.nom} » (code ${doublon.code}${doublon.statutActif ? "" : ", désactivé"}).`
+    );
+  }
+}
+
 export async function creerCoursier(input: CreerCoursierInput, entreprisesAccessibles: string[] | null) {
   const site = await prisma.site.findUnique({ where: { id: input.siteId } });
   if (!site) throw new NotFoundError("Site introuvable");
@@ -46,14 +84,17 @@ export async function creerCoursier(input: CreerCoursierInput, entreprisesAccess
     throw new ForbiddenError("Vous ne gérez pas ce site");
   }
 
-  const codeExistant = await prisma.coursier.findUnique({ where: { code: input.code } });
-  if (codeExistant) throw new ConflictError(`Le code "${input.code}" est déjà utilisé`);
+  const code = normaliserCode(input.code);
+  const codeExistant = await prisma.coursier.findFirst({ where: { code: { equals: code, mode: "insensitive" } } });
+  if (codeExistant) throw new ConflictError(`Le code "${code}" est déjà utilisé, même si le coursier est désactivé.`);
+  await verifierDoublonIdentite(input.prenom, input.nom, site.entrepriseId);
 
   const { siteId, ...coursierData } = input;
 
   return prisma.coursier.create({
     data: {
       ...coursierData,
+      code,
       coursierSites: {
         create: { siteId, estSitePrincipal: true },
       },
@@ -70,9 +111,29 @@ export async function modifierCoursier(id: string, input: ModifierCoursierInput,
   await verifierAccesCoursier(id, entreprisesAccessibles);
   if (coursier.archiveLe) throw new ConflictError("Ce coursier est archivé définitivement et ne peut plus être modifié.");
 
-  if (input.code && input.code !== coursier.code) {
-    const codeExistant = await prisma.coursier.findUnique({ where: { code: input.code } });
-    if (codeExistant) throw new ConflictError(`Le code "${input.code}" est déjà utilisé`);
+  if (input.code) {
+    const code = normaliserCode(input.code);
+    if (code === coursier.code) {
+      input = { ...input, code };
+    } else {
+      const codeExistant = await prisma.coursier.findFirst({ where: { code: { equals: code, mode: "insensitive" } } });
+      if (codeExistant) throw new ConflictError(`Le code "${code}" est déjà utilisé, même si le coursier est désactivé.`);
+      input = { ...input, code };
+    }
+  }
+
+  if (input.prenom !== undefined || input.nom !== undefined) {
+    const prenom = input.prenom ?? coursier.prenom;
+    const nom = input.nom ?? coursier.nom;
+    const rattachement = await prisma.coursierSite.findFirst({
+      where: {
+        coursierId: id,
+        site: entreprisesAccessibles === null ? undefined : { entrepriseId: { in: entreprisesAccessibles } },
+      },
+      include: { site: true },
+    });
+    const entrepriseId = rattachement?.site.entrepriseId;
+    if (entrepriseId) await verifierDoublonIdentite(prenom, nom, entrepriseId, id);
   }
 
   return prisma.coursier.update({ where: { id }, data: input });
