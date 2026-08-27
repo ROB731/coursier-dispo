@@ -94,6 +94,10 @@ export async function supprimerCoursier(id: string, entreprisesAccessibles: stri
   if (!coursier) throw new NotFoundError("Coursier introuvable");
   await verifierAccesCoursier(id, entreprisesAccessibles, true);
 
+  if (coursier.statutActif) {
+    throw new ConflictError("Désactivez d'abord le coursier avant de le supprimer.");
+  }
+
   const nombreEvenements = await prisma.evenement.count({ where: { coursierId: id } });
   if (nombreEvenements > 0) {
     throw new ConflictError("Ce coursier possède un historique et ne peut pas être supprimé. Désactivez-le plutôt.");

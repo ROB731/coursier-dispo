@@ -147,7 +147,13 @@ export default function ListeCoursiersPage() {
                   {c.statutActif ? "Désactiver" : "Réactiver"}
                 </button>
                 {utilisateur?.role === "SUPER_ADMIN" && (
-                  <button type="button" className="btn btn-secondary" onClick={() => supprimer(c)}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => supprimer(c)}
+                    disabled={c.statutActif}
+                    title={c.statutActif ? "Désactivez d'abord le coursier" : "Supprimer définitivement le coursier"}
+                  >
                     Supprimer
                   </button>
                 )}
@@ -198,7 +204,13 @@ export default function ListeCoursiersPage() {
                         {c.statutActif ? "Désactiver" : "Réactiver"}
                       </button>
                       {utilisateur?.role === "SUPER_ADMIN" && (
-                        <button type="button" className="btn btn-secondary" onClick={() => supprimer(c)}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => supprimer(c)}
+                          disabled={c.statutActif}
+                          title={c.statutActif ? "Désactivez d'abord le coursier" : "Supprimer définitivement le coursier"}
+                        >
                           Supprimer
                         </button>
                       )}
