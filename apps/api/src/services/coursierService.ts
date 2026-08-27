@@ -3,6 +3,8 @@ import { prisma } from "../lib/prisma";
 import { ConflictError, ForbiddenError, NotFoundError } from "../lib/errors";
 import { entrepriseAccessible } from "./perimetreService";
 
+export const DELAI_ARCHIVAGE_COURSIER_JOURS = 30;
+
 export interface CreerCoursierInput {
   code: string;
   photoUrl: string;
@@ -66,6 +68,7 @@ export async function modifierCoursier(id: string, input: ModifierCoursierInput,
   const coursier = await prisma.coursier.findUnique({ where: { id } });
   if (!coursier) throw new NotFoundError("Coursier introuvable");
   await verifierAccesCoursier(id, entreprisesAccessibles);
+  if (coursier.archiveLe) throw new ConflictError("Ce coursier est archivé définitivement et ne peut plus être modifié.");
 
   if (input.code && input.code !== coursier.code) {
     const codeExistant = await prisma.coursier.findUnique({ where: { code: input.code } });
@@ -79,13 +82,14 @@ export async function desactiverCoursier(id: string, entreprisesAccessibles: str
   const coursier = await prisma.coursier.findUnique({ where: { id } });
   if (!coursier) throw new NotFoundError("Coursier introuvable");
   await verifierAccesCoursier(id, entreprisesAccessibles);
-  return prisma.coursier.update({ where: { id }, data: { statutActif: false } });
+  return prisma.coursier.update({ where: { id }, data: { statutActif: false, desactiveLe: new Date(), archiveLe: null } });
 }
 
 export async function reactiverCoursier(id: string, entreprisesAccessibles: string[] | null) {
   const coursier = await prisma.coursier.findUnique({ where: { id } });
   if (!coursier) throw new NotFoundError("Coursier introuvable");
   await verifierAccesCoursier(id, entreprisesAccessibles);
+  if (coursier.archiveLe) throw new ConflictError("Ce coursier est archivé définitivement et ne peut plus être réactivé.");
   return prisma.coursier.update({ where: { id }, data: { statutActif: true } });
 }
 
@@ -98,12 +102,39 @@ export async function supprimerCoursier(id: string, entreprisesAccessibles: stri
     throw new ConflictError("Désactivez d'abord le coursier avant de le supprimer.");
   }
 
-  const nombreEvenements = await prisma.evenement.count({ where: { coursierId: id } });
-  if (nombreEvenements > 0) {
-    throw new ConflictError("Ce coursier possède un historique et ne peut pas être supprimé. Désactivez-le plutôt.");
+  if (coursier.desactiveLe) {
+    const delai = DELAI_ARCHIVAGE_COURSIER_JOURS * 24 * 60 * 60 * 1000;
+    if (Date.now() - coursier.desactiveLe.getTime() < delai) {
+      throw new ConflictError(`Ce coursier pourra être archivé après ${DELAI_ARCHIVAGE_COURSIER_JOURS} jours de désactivation.`);
+    }
   }
 
-  await prisma.coursier.delete({ where: { id } });
+  const nombreEvenements = await prisma.evenement.count({ where: { coursierId: id } });
+  if (nombreEvenements === 0) {
+    await prisma.coursier.delete({ where: { id } });
+    return { id };
+  }
+
+  await prisma.coursier.update({
+    where: { id },
+    data: {
+      statutActif: false,
+      archiveLe: new Date(),
+      code: `ARCHIVE-${id.slice(0, 8)}`,
+      photoUrl: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
+      prenom: "Coursier",
+      nom: "Archivé",
+      telephone: null,
+      email: null,
+      dateNaissance: null,
+      adresse: null,
+      typeContrat: null,
+      dateEmbauche: null,
+      contactUrgenceNom: null,
+      contactUrgenceTelephone: null,
+      notes: null,
+    },
+  });
   return { id };
 }
 
@@ -111,7 +142,7 @@ export async function listerCoursiers(
   filtres: { siteId?: string; actifSeulement?: boolean; entrepriseId?: string } = {},
   entreprisesAccessibles: string[] | null = null
 ) {
-  const where: Prisma.CoursierWhereInput = {};
+  const where: Prisma.CoursierWhereInput = { archiveLe: null };
   if (filtres.actifSeulement) where.statutActif = true;
 
   const idsAutorises =

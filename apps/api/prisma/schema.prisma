@@ -215,6 +215,8 @@ model Coursier {
   contactUrgenceNom       String?
   contactUrgenceTelephone String?
   statutActif             Boolean       @default(true)
+  desactiveLe             DateTime?
+  archiveLe               DateTime?
   profilHoraire           ProfilHoraire @relation(fields: [profilHoraireId], references: [id], onDelete: Restrict)
   profilHoraireId         String
   multiSiteActive         Boolean       @default(false)

@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { prisma } from "../lib/prisma";
 import { combinerDateEtHeure, horairesDuJour, JourSemaine } from "../lib/horaires";
+import { DELAI_ARCHIVAGE_COURSIER_JOURS, supprimerCoursier } from "../services/coursierService";
 
 const JOURS_PAR_INDEX_JS: JourSemaine[] = ["DIM", "LUN", "MAR", "MER", "JEU", "VEN", "SAM"];
 
@@ -16,6 +17,7 @@ const JOURS_PAR_INDEX_JS: JourSemaine[] = ["DIM", "LUN", "MAR", "MER", "JEU", "V
  * les deux étant idempotents et complémentaires plutôt qu'exclusifs.
  */
 export async function executerClotureAutomatique(maintenant: Date = new Date()) {
+  await archiverCoursiersDesactives(maintenant);
   // Chaque entreprise décide indépendamment d'activer la clôture automatique.
   const profilsActifs = await prisma.profilHoraire.findMany({
     where: { actif: true, entreprise: { parametres: { clotureAutoActive: true } } },
@@ -54,6 +56,22 @@ export async function executerClotureAutomatique(maintenant: Date = new Date()) 
           horodatage: heureFermeture,
         },
       });
+    }
+  }
+}
+
+async function archiverCoursiersDesactives(maintenant: Date) {
+  const dateLimite = new Date(maintenant.getTime() - DELAI_ARCHIVAGE_COURSIER_JOURS * 24 * 60 * 60 * 1000);
+  const coursiers = await prisma.coursier.findMany({
+    where: { statutActif: false, desactiveLe: { lte: dateLimite }, archiveLe: null },
+    select: { id: true },
+  });
+
+  for (const coursier of coursiers) {
+    try {
+      await supprimerCoursier(coursier.id, null);
+    } catch (err) {
+      console.error(`Erreur archivage automatique du coursier ${coursier.id}`, err);
     }
   }
 }
