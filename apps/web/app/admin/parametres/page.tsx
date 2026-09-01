@@ -27,8 +27,9 @@ interface Terminal {
   site: { nom: string };
 }
 
-interface StatutCodeBorne {
-  configure: boolean;
+interface CodeBorne {
+  id: string;
+  nom: string;
   actif: boolean;
   appareilLie: boolean;
   lieLe: string | null;
@@ -46,13 +47,14 @@ export default function ParametresPage() {
   const [configurationAccueil, setConfigurationAccueil] = useState<ConfigurationAccueil | null>(null);
   const [terminaux, setTerminaux] = useState<Terminal[]>([]);
   const [enregistrementAccueil, setEnregistrementAccueil] = useState(false);
-  const [statutCodeBorne, setStatutCodeBorne] = useState<StatutCodeBorne | null>(null);
-  const [codeGenere, setCodeGenere] = useState<string | null>(null);
+  const [codesBorne, setCodesBorne] = useState<CodeBorne[] | null>(null);
+  const [nomNouveauCode, setNomNouveauCode] = useState("");
+  const [codeGenere, setCodeGenere] = useState<{ nom: string; code: string } | null>(null);
   const [actionCodeBorneEnCours, setActionCodeBorneEnCours] = useState(false);
   const [erreurCodeBorne, setErreurCodeBorne] = useState<string | null>(null);
 
-  function chargerStatutCodeBorne() {
-    api.get<StatutCodeBorne>("/api/parametres/code-borne").then(setStatutCodeBorne);
+  function chargerCodesBorne() {
+    api.get<CodeBorne[]>("/api/parametres/codes-borne").then(setCodesBorne);
   }
 
   useEffect(() => {
@@ -63,28 +65,31 @@ export default function ParametresPage() {
     if (!estSuperAdmin) return;
     api.get<ConfigurationAccueil>("/api/parametres/accueil").then(setConfigurationAccueil);
     api.get<Terminal[]>("/api/terminaux").then(setTerminaux);
-    chargerStatutCodeBorne();
+    chargerCodesBorne();
   }, [estSuperAdmin]);
 
-  async function genererCodeBorne() {
+  async function ajouterCodeBorne(e: FormEvent) {
+    e.preventDefault();
+    if (!nomNouveauCode.trim()) return;
     setActionCodeBorneEnCours(true);
     setErreurCodeBorne(null);
     try {
-      const { code } = await api.post<{ code: string }>("/api/parametres/code-borne/generer");
-      setCodeGenere(code);
-      chargerStatutCodeBorne();
+      const cree = await api.post<{ nom: string; code: string }>("/api/parametres/codes-borne", { nom: nomNouveauCode });
+      setCodeGenere({ nom: cree.nom, code: cree.code });
+      setNomNouveauCode("");
+      chargerCodesBorne();
     } catch (err) {
-      setErreurCodeBorne(err instanceof ApiError ? err.message : "Échec de la génération du code");
+      setErreurCodeBorne(err instanceof ApiError ? err.message : "Échec de la création du code");
     } finally {
       setActionCodeBorneEnCours(false);
     }
   }
 
-  async function basculerActivationCodeBorne(actif: boolean) {
+  async function basculerActivationCodeBorne(id: string, actif: boolean) {
     setActionCodeBorneEnCours(true);
     setErreurCodeBorne(null);
     try {
-      setStatutCodeBorne(await api.patch<StatutCodeBorne>("/api/parametres/code-borne/actif", { actif }));
+      setCodesBorne(await api.patch<CodeBorne[]>(`/api/parametres/codes-borne/${id}/actif`, { actif }));
     } catch (err) {
       setErreurCodeBorne(err instanceof ApiError ? err.message : "Échec de l'opération");
     } finally {
@@ -92,13 +97,26 @@ export default function ParametresPage() {
     }
   }
 
-  async function delierAppareilCodeBorne() {
+  async function delierCodeBorne(id: string) {
     setActionCodeBorneEnCours(true);
     setErreurCodeBorne(null);
     try {
-      setStatutCodeBorne(await api.post<StatutCodeBorne>("/api/parametres/code-borne/delier"));
+      setCodesBorne(await api.post<CodeBorne[]>(`/api/parametres/codes-borne/${id}/delier`));
     } catch (err) {
       setErreurCodeBorne(err instanceof ApiError ? err.message : "Échec de l'opération");
+    } finally {
+      setActionCodeBorneEnCours(false);
+    }
+  }
+
+  async function supprimerCodeBorne(c: CodeBorne) {
+    if (!window.confirm(`Supprimer définitivement le code "${c.nom}" ? Cette action est irréversible.`)) return;
+    setActionCodeBorneEnCours(true);
+    setErreurCodeBorne(null);
+    try {
+      setCodesBorne(await api.delete<CodeBorne[]>(`/api/parametres/codes-borne/${c.id}`));
+    } catch (err) {
+      setErreurCodeBorne(err instanceof ApiError ? err.message : "Échec de la suppression");
     } finally {
       setActionCodeBorneEnCours(false);
     }
@@ -205,58 +223,88 @@ export default function ParametresPage() {
         </form>
       )}
 
-      {estSuperAdmin && statutCodeBorne && (
+      {estSuperAdmin && codesBorne && (
         <div style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.05rem" }}>Code d'accès de la borne</h2>
+          <h2 style={{ fontSize: "1.05rem" }}>
+            Codes d'accès de la borne{" "}
+            <span style={{ fontWeight: 400, fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+              ({codesBorne.filter((c) => c.actif).length} actif{codesBorne.filter((c) => c.actif).length !== 1 ? "s" : ""} sur {codesBorne.length})
+            </span>
+          </h2>
           <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", margin: "0 0 0.75rem" }}>
-            Seule la personne qui connaît ce code peut changer l'état d'un coursier à la borne. Il reste valable
-            indéfiniment jusqu'à ce que vous le désactiviez ici.
+            Seule une personne connaissant un code actif peut changer l'état d'un coursier à la borne. Chaque code
+            reste valable indéfiniment jusqu'à ce que vous le désactiviez.
           </p>
 
           {codeGenere && (
             <div className="alert-banner info" style={{ margin: "0 0 1rem" }}>
-              Nouveau code : <strong style={{ fontSize: "1.2rem", letterSpacing: "0.2em" }}>{codeGenere}</strong>
+              Nouveau code pour <strong>{codeGenere.nom}</strong> :{" "}
+              <strong style={{ fontSize: "1.2rem", letterSpacing: "0.2em" }}>{codeGenere.code}</strong>
               <br />
               À communiquer maintenant à la personne autorisée — il ne sera plus jamais affiché.
             </div>
           )}
 
-          <p style={{ fontSize: "0.9rem", margin: "0 0 0.5rem" }}>
-            Statut :{" "}
-            {!statutCodeBorne.configure
-              ? "aucun code généré"
-              : statutCodeBorne.actif
-                ? "actif"
-                : "désactivé"}
-            {statutCodeBorne.configure && statutCodeBorne.appareilLie && (
-              <>
-                {" "}
-                · lié à un appareil
-                {statutCodeBorne.lieLe && ` depuis le ${new Date(statutCodeBorne.lieLe).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}`}
-              </>
-            )}
-          </p>
+          {codesBorne.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
+              {codesBorne.map((c) => (
+                <div
+                  key={c.id}
+                  className="card"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "0.75rem",
+                    padding: "0.65rem 0.9rem",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <strong>{c.nom}</strong>
+                    <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
+                      {c.actif ? "Actif" : "Désactivé"}
+                      {c.appareilLie && (
+                        <>
+                          {" "}
+                          · lié à un appareil
+                          {c.lieLe && ` depuis le ${new Date(c.lieLe).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}`}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="btn-text"
+                      disabled={actionCodeBorneEnCours}
+                      onClick={() => basculerActivationCodeBorne(c.id, !c.actif)}
+                    >
+                      {c.actif ? "Désactiver" : "Réactiver"}
+                    </button>
+                    {c.appareilLie && (
+                      <button type="button" className="btn-text" disabled={actionCodeBorneEnCours} onClick={() => delierCodeBorne(c.id)}>
+                        Délier
+                      </button>
+                    )}
+                    <button type="button" className="btn-text" disabled={actionCodeBorneEnCours} onClick={() => supprimerCodeBorne(c)}>
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-            <button type="button" className="btn btn-secondary" disabled={actionCodeBorneEnCours} onClick={genererCodeBorne}>
-              {statutCodeBorne.configure ? "Générer un nouveau code" : "Générer un code"}
+          <form onSubmit={ajouterCodeBorne} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div className="form-field" style={{ marginBottom: 0, flex: "1 1 12rem" }}>
+              <label htmlFor="nomNouveauCode">Nom (ex: Gardien siège)</label>
+              <input id="nomNouveauCode" value={nomNouveauCode} onChange={(e) => setNomNouveauCode(e.target.value)} />
+            </div>
+            <button type="submit" className="btn btn-secondary" disabled={actionCodeBorneEnCours || !nomNouveauCode.trim()}>
+              + Ajouter un code
             </button>
-            {statutCodeBorne.configure && (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={actionCodeBorneEnCours}
-                onClick={() => basculerActivationCodeBorne(!statutCodeBorne.actif)}
-              >
-                {statutCodeBorne.actif ? "Désactiver" : "Réactiver"}
-              </button>
-            )}
-            {statutCodeBorne.appareilLie && (
-              <button type="button" className="btn btn-secondary" disabled={actionCodeBorneEnCours} onClick={delierAppareilCodeBorne}>
-                Délier l'appareil
-              </button>
-            )}
-          </div>
+          </form>
 
           {erreurCodeBorne && <p className="form-error">{erreurCodeBorne}</p>}
         </div>

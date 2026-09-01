@@ -363,15 +363,26 @@ model ConfigurationPlateforme {
   terminalAccueil           Terminal?       @relation(fields: [terminalAccueilId], references: [id], onDelete: SetNull)
   terminalAccueilId         String?         @unique
   notificationsBorneActives Boolean         @default(false)
-  // Code d'accès permanent (gardien) requis à la borne pour modifier l'état
-  // d'un coursier — cf. codeBorneService. Haché, jamais stocké en clair.
-  // Lié au premier appareil qui s'authentifie avec succès (codeBorneAppareilId) ;
-  // un autre appareil est refusé tant que le Super Admin ne l'a pas délié.
-  codeBorneHash             String?
-  codeBorneActif            Boolean         @default(false)
-  codeBorneAppareilId       String?
-  codeBorneLieLe            DateTime?
   updatedAt                 DateTime        @updatedAt
+}
+
+// Code(s) d'accès permanent requis à la borne pour modifier l'état d'un
+// coursier — cf. codeBorneService. Plusieurs codes peuvent coexister (ex. un
+// par borne ou par personne autorisée), gérés indépendamment par le Super
+// Admin. Haché, jamais stocké en clair. Chaque code se lie au premier
+// appareil qui s'authentifie avec succès (appareilId) ; un autre appareil
+// est refusé tant que le Super Admin ne l'a pas délié.
+model CodeAccesBorne {
+  id         String    @id @default(uuid())
+  nom        String
+  codeHash   String
+  actif      Boolean   @default(true)
+  appareilId String?
+  lieLe      DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([actif])
 }
 
 // ---------- Employés (registre de présence/absence) ----------

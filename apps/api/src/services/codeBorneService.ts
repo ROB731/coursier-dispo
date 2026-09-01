@@ -1,23 +1,20 @@
 import bcrypt from "bcrypt";
 import { prisma } from "../lib/prisma";
-import { AuthentificationBorneRequiseError, ForbiddenError, UnauthorizedError } from "../lib/errors";
+import { AuthentificationBorneRequiseError, ForbiddenError, NotFoundError, UnauthorizedError } from "../lib/errors";
 
 const SALT_ROUNDS = 12;
-const LONGUEUR_CODE = 6;
+const LONGUEUR_CODE = 4;
 
-async function getConfiguration() {
-  return prisma.configurationPlateforme.findUnique({ where: { id: "global" } });
-}
-
-/** Statut exposé au Super Admin — jamais le hash. */
-export async function getStatutCodeBorne() {
-  const configuration = await getConfiguration();
-  return {
-    configure: Boolean(configuration?.codeBorneHash),
-    actif: Boolean(configuration?.codeBorneActif),
-    appareilLie: Boolean(configuration?.codeBorneAppareilId),
-    lieLe: configuration?.codeBorneLieLe ?? null,
-  };
+/** Liste exposée au Super Admin — jamais le hash. */
+export async function listerCodesBorne() {
+  const codes = await prisma.codeAccesBorne.findMany({ orderBy: { createdAt: "asc" } });
+  return codes.map((c) => ({
+    id: c.id,
+    nom: c.nom,
+    actif: c.actif,
+    appareilLie: Boolean(c.appareilId),
+    lieLe: c.lieLe,
+  }));
 }
 
 function genererCode(): string {
@@ -26,75 +23,79 @@ function genererCode(): string {
   return String(Math.floor(min + Math.random() * (max - min + 1)));
 }
 
-/** Génère un nouveau code, l'active, et délie l'appareil précédent (nouveau
- * code = nouvelle attribution). Le code en clair n'est retourné qu'ici,
- * une seule fois — à communiquer au gardien immédiatement. */
-export async function genererCodeBorne() {
+/** Crée un nouveau code, actif immédiatement. Le code en clair n'est
+ * retourné qu'ici, une seule fois — à communiquer à la personne concernée
+ * immédiatement. */
+export async function genererCodeBorne(nom: string) {
   const code = genererCode();
-  const codeBorneHash = await bcrypt.hash(code, SALT_ROUNDS);
+  const codeHash = await bcrypt.hash(code, SALT_ROUNDS);
 
-  await prisma.configurationPlateforme.upsert({
-    where: { id: "global" },
-    create: { id: "global", codeBorneHash, codeBorneActif: true, codeBorneAppareilId: null, codeBorneLieLe: null },
-    update: { codeBorneHash, codeBorneActif: true, codeBorneAppareilId: null, codeBorneLieLe: null },
+  const cree = await prisma.codeAccesBorne.create({
+    data: { nom, codeHash },
   });
 
-  return { code };
+  return { id: cree.id, nom: cree.nom, code };
 }
 
-export async function activerCodeBorne(actif: boolean) {
-  const configuration = await getConfiguration();
-  if (!configuration?.codeBorneHash) throw new ForbiddenError("Aucun code n'a encore été généré");
-
-  await prisma.configurationPlateforme.update({
-    where: { id: "global" },
-    data: { codeBorneActif: actif },
-  });
-
-  return getStatutCodeBorne();
+async function trouverCode(id: string) {
+  const code = await prisma.codeAccesBorne.findUnique({ where: { id } });
+  if (!code) throw new NotFoundError("Code introuvable");
+  return code;
 }
 
-/** Libère l'appareil actuellement lié, sans changer le code — permet de
- * réattribuer l'accès à une autre tablette sans en communiquer un nouveau. */
-export async function delierAppareilBorne() {
-  await prisma.configurationPlateforme.update({
-    where: { id: "global" },
-    data: { codeBorneAppareilId: null, codeBorneLieLe: null },
-  });
+export async function activerCodeBorne(id: string, actif: boolean) {
+  await trouverCode(id);
+  await prisma.codeAccesBorne.update({ where: { id }, data: { actif } });
+  return listerCodesBorne();
+}
 
-  return getStatutCodeBorne();
+/** Libère l'appareil actuellement lié à ce code, sans le changer — permet
+ * de réattribuer l'accès sans en communiquer un nouveau. */
+export async function delierAppareilCodeBorne(id: string) {
+  await trouverCode(id);
+  await prisma.codeAccesBorne.update({ where: { id }, data: { appareilId: null, lieLe: null } });
+  return listerCodesBorne();
+}
+
+export async function supprimerCodeBorne(id: string) {
+  await trouverCode(id);
+  await prisma.codeAccesBorne.delete({ where: { id } });
+  return listerCodesBorne();
 }
 
 /** Appelée par la borne (page publique, pas de compte) quand le modal
- * d'authentification est soumis. Lie l'appareil au premier succès ; un
- * appareil déjà lié ailleurs est refusé jusqu'à ce que le Super Admin le délie. */
+ * d'authentification est soumis. Compare le code saisi à chaque code actif
+ * (pas de recherche directe possible, les codes sont hachés) ; lie
+ * l'appareil au premier succès. Un appareil déjà lié à ce code précis sur
+ * un autre appareil est refusé jusqu'à ce que le Super Admin le délie. */
 export async function authentifierAppareilBorne(code: string, appareilId: string) {
-  const configuration = await getConfiguration();
-  if (!configuration?.codeBorneHash || !configuration.codeBorneActif) {
-    throw new ForbiddenError("Aucun code d'accès n'est actuellement configuré");
+  const codesActifs = await prisma.codeAccesBorne.findMany({ where: { actif: true } });
+
+  for (const candidat of codesActifs) {
+    const valide = await bcrypt.compare(code, candidat.codeHash);
+    if (!valide) continue;
+
+    if (candidat.appareilId && candidat.appareilId !== appareilId) {
+      throw new ForbiddenError("Ce code est déjà utilisé sur un autre appareil — contactez le Super Administrateur");
+    }
+
+    await prisma.codeAccesBorne.update({
+      where: { id: candidat.id },
+      data: { appareilId, lieLe: new Date() },
+    });
+    return;
   }
 
-  const valide = await bcrypt.compare(code, configuration.codeBorneHash);
-  if (!valide) throw new UnauthorizedError("Code incorrect");
-
-  if (configuration.codeBorneAppareilId && configuration.codeBorneAppareilId !== appareilId) {
-    throw new ForbiddenError("Ce code est déjà utilisé sur un autre appareil — contactez le Super Administrateur");
-  }
-
-  await prisma.configurationPlateforme.update({
-    where: { id: "global" },
-    data: { codeBorneAppareilId: appareilId, codeBorneLieLe: new Date() },
-  });
+  throw new UnauthorizedError("Code incorrect");
 }
 
 /** Garde-fou appelé avant toute modification d'état d'un coursier à la
- * borne. Ne fait rien si aucun code n'est configuré/actif (fonctionnalité
- * désactivée) — sinon exige que l'appareil appelant soit celui lié. */
+ * borne. Ne fait rien si aucun code actif n'existe (fonctionnalité
+ * désactivée) — sinon exige que l'appareil appelant soit lié à l'un d'eux. */
 export async function verifierAccesAppareilBorne(appareilId: string | undefined) {
-  const configuration = await getConfiguration();
-  if (!configuration?.codeBorneHash || !configuration.codeBorneActif) return;
+  const codesActifs = await prisma.codeAccesBorne.findMany({ where: { actif: true } });
+  if (codesActifs.length === 0) return;
 
-  if (!appareilId || configuration.codeBorneAppareilId !== appareilId) {
-    throw new AuthentificationBorneRequiseError();
-  }
+  const autorise = appareilId && codesActifs.some((c) => c.appareilId === appareilId);
+  if (!autorise) throw new AuthentificationBorneRequiseError();
 }
