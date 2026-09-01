@@ -13,8 +13,16 @@ import {
 
 export const notificationsRouter = Router();
 
-notificationsRouter.get("/", async (req, res) => {
-  res.json(await listerNotifications(req.utilisateur!.id));
+notificationsRouter.get("/borne/:terminalId", async (req, res) => {
+  const terminal = await prisma.terminal.findUnique({ where: { id: req.params.terminalId } });
+  if (!terminal) throw new NotFoundError("Borne introuvable");
+  res.json(
+    await prisma.notificationBorne.findMany({
+      where: { terminalId: terminal.id },
+      orderBy: { envoyeAt: "desc" },
+      take: 100,
+    })
+  );
 });
 
 const subscribeSchema = z.object({
@@ -46,6 +54,10 @@ notificationsRouter.post("/borne/subscribe", validateBody(borneSubscribeSchema),
 });
 
 notificationsRouter.use(requireAuth);
+
+notificationsRouter.get("/", async (req, res) => {
+  res.json(await listerNotifications(req.utilisateur!.id));
+});
 
 notificationsRouter.patch("/lu", async (req, res) => {
   await marquerToutesCommeLues(req.utilisateur!.id);

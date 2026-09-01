@@ -1,4 +1,4 @@
-import { ProfilHoraire } from "@prisma/client";
+import { Evenement, ProfilHoraire } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { horairesDuJour, JourSemaine } from "../lib/horaires";
 
@@ -51,6 +51,31 @@ export interface StatutDetaille {
  * horaires du profil du coursier, ou si le dernier événement date d'un autre
  * jour, l'état retombe à NON_DISPONIBLE quel que soit le contenu brut en base.
  */
+// Logique pure, partagée entre la version unitaire (calculerStatutDetaille)
+// et la version groupée (calculerStatutsDetailleParLot) — le dernier
+// événement et le profil horaire sont déjà chargés, aucune requête ici.
+function deriverStatutDetaille(
+  profilHoraire: ProfilHoraire,
+  dernier: Pick<Evenement, "type" | "horodatage"> | null,
+  maintenant: Date
+): StatutDetaille {
+  const position = positionHoraire(profilHoraire, maintenant);
+  const horsPlageHoraire = position !== "dans";
+  const journeeTermineeBase = position === "apres" || position === "aucune-plage";
+
+  if (!dernier) {
+    return { statut: "NON_DISPONIBLE", horsPlageHoraire, journeeTerminee: journeeTermineeBase };
+  }
+
+  if (dernier.type !== "ENTREE") return { statut: "NON_DISPONIBLE", horsPlageHoraire, journeeTerminee: journeeTermineeBase };
+  if (!estMemeJourCalendaire(dernier.horodatage, maintenant)) {
+    return { statut: "NON_DISPONIBLE", horsPlageHoraire: true, journeeTerminee: true };
+  }
+  if (horsPlageHoraire) return { statut: "NON_DISPONIBLE", horsPlageHoraire: true, journeeTerminee: journeeTermineeBase };
+
+  return { statut: "DISPONIBLE", horsPlageHoraire: false, journeeTerminee: false };
+}
+
 export async function calculerStatutDetaille(coursierId: string, maintenant: Date = new Date()): Promise<StatutDetaille> {
   const dernier = await prisma.evenement.findFirst({
     where: {
@@ -65,61 +90,71 @@ export async function calculerStatutDetaille(coursierId: string, maintenant: Dat
   if (!dernier) {
     const coursier = await prisma.coursier.findUnique({ where: { id: coursierId }, include: { profilHoraire: true } });
     if (!coursier) return { statut: "NON_DISPONIBLE", horsPlageHoraire: false, journeeTerminee: false };
-    const position = positionHoraire(coursier.profilHoraire, maintenant);
-    return {
-      statut: "NON_DISPONIBLE",
-      horsPlageHoraire: position !== "dans",
-      journeeTerminee: position === "apres" || position === "aucune-plage",
-    };
+    return deriverStatutDetaille(coursier.profilHoraire, null, maintenant);
   }
 
-  const position = positionHoraire(dernier.coursier.profilHoraire, maintenant);
-  const horsPlageHoraire = position !== "dans";
-  const journeeTermineeBase = position === "apres" || position === "aucune-plage";
-
-  if (dernier.type !== "ENTREE") return { statut: "NON_DISPONIBLE", horsPlageHoraire, journeeTerminee: journeeTermineeBase };
-  if (!estMemeJourCalendaire(dernier.horodatage, maintenant)) {
-    return { statut: "NON_DISPONIBLE", horsPlageHoraire: true, journeeTerminee: true };
-  }
-  if (horsPlageHoraire) return { statut: "NON_DISPONIBLE", horsPlageHoraire: true, journeeTerminee: journeeTermineeBase };
-
-  return { statut: "DISPONIBLE", horsPlageHoraire: false, journeeTerminee: false };
+  return deriverStatutDetaille(dernier.coursier.profilHoraire, dernier, maintenant);
 }
 
 export async function calculerStatut(coursierId: string, maintenant: Date = new Date()): Promise<Statut> {
   return (await calculerStatutDetaille(coursierId, maintenant)).statut;
 }
 
+/**
+ * Version groupée de calculerStatutDetaille : une seule requête (distinct
+ * sur coursierId, triée par horodatage desc — DISTINCT ON côté Postgres)
+ * récupère le dernier événement de TOUS les coursiers passés en argument,
+ * au lieu d'une requête par coursier. C'est ce correctif qui élimine le N+1
+ * qui dominait le coût de /api/statuts et /bornes/:id/coursiers.
+ */
+export async function calculerStatutsDetailleParLot(
+  coursiers: { id: string; profilHoraire: ProfilHoraire }[],
+  maintenant: Date = new Date()
+): Promise<Map<string, StatutDetaille & { depuis: Date | null }>> {
+  const ids = coursiers.map((c) => c.id);
+  const derniers = ids.length
+    ? await prisma.evenement.findMany({
+        where: { coursierId: { in: ids }, type: { in: ["ENTREE", "SORTIE", "CLOTURE_AUTO"] }, annulePar: null },
+        orderBy: { horodatage: "desc" },
+        distinct: ["coursierId"],
+      })
+    : [];
+  const dernierParCoursier = new Map(derniers.map((e) => [e.coursierId, e]));
+
+  const resultats = new Map<string, StatutDetaille & { depuis: Date | null }>();
+  for (const coursier of coursiers) {
+    const dernier = dernierParCoursier.get(coursier.id) ?? null;
+    resultats.set(coursier.id, {
+      ...deriverStatutDetaille(coursier.profilHoraire, dernier, maintenant),
+      depuis: dernier?.horodatage ?? null,
+    });
+  }
+  return resultats;
+}
+
 export async function getStatutsSite(siteId: string) {
   const rattachements = await prisma.coursierSite.findMany({
     where: { siteId, actif: true, coursier: { statutActif: true } },
-    include: { coursier: true },
+    include: { coursier: { include: { profilHoraire: true } } },
   });
 
-  const maintenant = new Date();
+  const coursiers = rattachements.map((r) => r.coursier);
+  const details = await calculerStatutsDetailleParLot(coursiers);
 
-  const statuts = await Promise.all(
-    rattachements.map(async ({ coursier }) => {
-      const dernier = await prisma.evenement.findFirst({
-        where: { coursierId: coursier.id, type: { in: ["ENTREE", "SORTIE", "CLOTURE_AUTO"] }, annulePar: null },
-        orderBy: { horodatage: "desc" },
-      });
-
-      const detail = await calculerStatutDetaille(coursier.id, maintenant);
-
-      return {
-        coursierId: coursier.id,
-        code: coursier.code,
-        prenom: coursier.prenom,
-        nom: coursier.nom,
-        photoUrl: coursier.photoUrl,
-        statut: detail.statut,
-        horsPlageHoraire: detail.horsPlageHoraire,
-        journeeTerminee: detail.journeeTerminee,
-        depuis: dernier?.horodatage ?? null,
-      };
-    })
-  );
+  const statuts = coursiers.map((coursier) => {
+    const detail = details.get(coursier.id)!;
+    return {
+      coursierId: coursier.id,
+      code: coursier.code,
+      prenom: coursier.prenom,
+      nom: coursier.nom,
+      photoUrl: coursier.photoUrl,
+      statut: detail.statut,
+      horsPlageHoraire: detail.horsPlageHoraire,
+      journeeTerminee: detail.journeeTerminee,
+      depuis: detail.depuis,
+    };
+  });
 
   return statuts.sort((a, b) => {
     if (a.statut === b.statut) return a.code.localeCompare(b.code);

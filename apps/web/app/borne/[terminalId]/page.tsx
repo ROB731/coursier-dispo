@@ -8,9 +8,9 @@ import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { RecapDetailsModal } from "@/components/RecapDetailsModal";
 import { Toast } from "@/components/Toast";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { IconBan, IconBell, IconChevronDown, IconDownload, IconLogIn } from "@/components/icons";
+import { IconBan, IconChevronDown, IconDownload, IconLogIn, IconRefresh } from "@/components/icons";
 import { Modal } from "@/components/Modal";
-import { activerNotificationsPushBorne, pushDisponible } from "@/lib/pushNotifications";
+import { NotificationBellBorne } from "@/components/NotificationBellBorne";
 
 interface ReponseBorneCoursiers {
   terminal: { id: string; siteId: string; nom: string };
@@ -25,8 +25,11 @@ interface EvenementInstallationPWA extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const INTERVALLE_RAFRAICHISSEMENT_MS = 10_000;
 const DUREE_TOAST_MS = 5_000;
+
+function formatHeure(date: Date): string {
+  return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
 
 export default function BornePage({ params }: { params: { terminalId: string } }) {
   const { terminalId } = params;
@@ -42,9 +45,9 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const [invitationInstallation, setInvitationInstallation] = useState<EvenementInstallationPWA | null>(null);
   const [desactivation, setDesactivation] = useState<{ parNom: string | null; le: string | null } | null>(null);
   const [notificationsBorneActives, setNotificationsBorneActives] = useState(false);
-  const [notificationsActivees, setNotificationsActivees] = useState(false);
-  const [activationNotificationsEnCours, setActivationNotificationsEnCours] = useState(false);
   const [afficherRemonter, setAfficherRemonter] = useState(false);
+  const [actualisation, setActualisation] = useState(false);
+  const [dernierRafraichissement, setDernierRafraichissement] = useState<Date | null>(null);
   const zoneDefilementRef = useRef<HTMLDivElement>(null);
 
   function surDefilement() {
@@ -75,15 +78,22 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     setInvitationInstallation(null);
   }
 
+  // Pas de rafraîchissement automatique — le budget de requêtes de la base
+  // est trop serré. On recharge à l'ouverture, juste après une action
+  // (Entrée/Sortie/annulation, ci-dessous) et sur clic explicite d'Actualiser.
   const chargerTout = useCallback(async () => {
+    setActualisation(true);
     try {
       const data = await api.get<ReponseBorneCoursiers>(`/api/bornes/${terminalId}/coursiers`);
       setNomBorne(data.terminal.nom);
       setCoursiers(data.coursiers);
       setDesactivation(data.desactive ? { parNom: data.desactiveParNom, le: data.desactiveLe } : null);
       setErreur(null);
+      setDernierRafraichissement(new Date());
     } catch (err) {
       setErreur(err instanceof ApiError ? err.message : "Point indisponible — vérifiez la connexion");
+    } finally {
+      setActualisation(false);
     }
   }, [terminalId]);
 
@@ -93,21 +103,8 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       .catch(() => {});
   }, []);
 
-  async function activerNotificationsBorne() {
-    setActivationNotificationsEnCours(true);
-    try {
-      setNotificationsActivees(await activerNotificationsPushBorne(terminalId));
-    } catch (err) {
-      setErreur(err instanceof ApiError ? err.message : "Impossible d'activer les notifications");
-    } finally {
-      setActivationNotificationsEnCours(false);
-    }
-  }
-
   useEffect(() => {
     chargerTout();
-    const intervalle = setInterval(chargerTout, INTERVALLE_RAFRAICHISSEMENT_MS);
-    return () => clearInterval(intervalle);
   }, [chargerTout]);
 
   useEffect(() => {
@@ -218,21 +215,25 @@ export default function BornePage({ params }: { params: { terminalId: string } }
             DISPO-COURSIER · {nomBorne || "À la porte"}
           </strong>
           <ConnectionStatus />
+          {dernierRafraichissement && (
+            <span className="connection-label" style={{ fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
+              Actualisé à {formatHeure(dernierRafraichissement)}
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          {notificationsBorneActives && pushDisponible() && (
-            <button
-              type="button"
-              className="btn-text"
-              onClick={activerNotificationsBorne}
-              disabled={activationNotificationsEnCours || notificationsActivees}
-              title={notificationsActivees ? "Notifications activées" : "Activer les notifications"}
-              aria-label={notificationsActivees ? "Notifications activées" : "Activer les notifications"}
-              style={{ display: "inline-flex", alignItems: "center", padding: "0.3rem" }}
-            >
-              <IconBell size={17} />
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-text"
+            onClick={chargerTout}
+            disabled={actualisation}
+            aria-label="Actualiser"
+            title="Actualiser"
+            style={{ display: "inline-flex", alignItems: "center", padding: "0.3rem" }}
+          >
+            <IconRefresh size={17} style={actualisation ? { animation: "tourner 0.8s linear infinite" } : undefined} />
+          </button>
+          <NotificationBellBorne terminalId={terminalId} notificationsActivesSurCeSite={notificationsBorneActives} />
           <a
             href="/login"
             className="btn-text"

@@ -194,6 +194,7 @@ model Terminal {
   evenements         Evenement[]
   configurationAccueil ConfigurationPlateforme?
   pushSubscriptions  PushSubscriptionBorne[]
+  notificationsBorne NotificationBorne[]
 
   @@index([siteId])
 }
@@ -315,6 +316,17 @@ model PushSubscriptionBorne {
   createdAt  DateTime @default(now())
 
   @@index([terminalId])
+}
+
+model NotificationBorne {
+  id         String           @id @default(uuid())
+  terminal   Terminal         @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  terminalId String
+  type       TypeNotification
+  message    String
+  envoyeAt   DateTime         @default(now())
+
+  @@index([terminalId, envoyeAt])
 }
 
 model Notification {

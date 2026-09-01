@@ -8,9 +8,7 @@ import { Site, StatutCoursier } from "@/lib/types";
 import { StatutBadge } from "@/components/StatutBadge";
 import { TopBar } from "@/components/TopBar";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { IconMenu } from "@/components/icons";
-
-const INTERVALLE_PAR_DEFAUT_MS = 7000;
+import { IconMenu, IconRefresh } from "@/components/icons";
 
 function formatDepuis(depuis: string | null): string {
   if (!depuis) return "";
@@ -18,12 +16,17 @@ function formatDepuis(depuis: string | null): string {
   return `depuis ${date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
+function formatHeure(date: Date): string {
+  return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 export default function TableauDeBordPage() {
   const { utilisateur, chargement } = useUtilisateur();
   const [sites, setSites] = useState<Site[]>([]);
   const [siteId, setSiteId] = useState<string>("");
   const [statuts, setStatuts] = useState<StatutCoursier[]>([]);
-  const [intervalleMs, setIntervalleMs] = useState(INTERVALLE_PAR_DEFAUT_MS);
+  const [actualisation, setActualisation] = useState(false);
+  const [dernierRafraichissement, setDernierRafraichissement] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!utilisateur) return;
@@ -33,27 +36,26 @@ export default function TableauDeBordPage() {
     });
   }, [utilisateur]);
 
-  useEffect(() => {
-    const site = sites.find((s) => s.id === siteId);
-    if (!site) return;
-    api
-      .get<{ intervallePollingSecondes: number }>(`/api/parametres?entrepriseId=${site.entrepriseId}`)
-      .then((p) => setIntervalleMs(p.intervallePollingSecondes * 1000))
-      .catch(() => {});
-  }, [sites, siteId]);
-
+  // Pas de polling automatique — on charge à l'ouverture / au changement de
+  // site, puis uniquement quand la personne clique sur Actualiser. Le budget
+  // de requêtes de la base est trop serré pour un rafraîchissement continu ;
+  // les alertes Push préviennent déjà des changements importants entre deux clics.
   const chargerStatuts = useCallback(async () => {
     if (!siteId) return;
-    const data = await api.get<StatutCoursier[]>(`/api/statuts/sites/${siteId}`);
-    setStatuts(data);
+    setActualisation(true);
+    try {
+      const data = await api.get<StatutCoursier[]>(`/api/statuts/sites/${siteId}`);
+      setStatuts(data);
+      setDernierRafraichissement(new Date());
+    } finally {
+      setActualisation(false);
+    }
   }, [siteId]);
 
   useEffect(() => {
     if (!siteId) return;
     chargerStatuts();
-    const intervalle = setInterval(chargerStatuts, intervalleMs);
-    return () => clearInterval(intervalle);
-  }, [siteId, intervalleMs, chargerStatuts]);
+  }, [siteId, chargerStatuts]);
 
   if (chargement || !utilisateur) return null;
 
@@ -83,6 +85,23 @@ export default function TableauDeBordPage() {
             <SearchableSelect options={sites.map((s) => ({ value: s.id, label: s.nom }))} value={siteId} onChange={setSiteId} />
           </div>
         )}
+
+        <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "0.6rem", paddingBottom: 0 }}>
+          {dernierRafraichissement && (
+            <span style={{ fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
+              Actualisé à {formatHeure(dernierRafraichissement)}
+            </span>
+          )}
+          <button
+            type="button"
+            className="btn-text"
+            onClick={chargerStatuts}
+            disabled={actualisation}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+          >
+            <IconRefresh size={15} style={actualisation ? { animation: "tourner 0.8s linear infinite" } : undefined} /> Actualiser
+          </button>
+        </div>
 
         <p className={`alert-banner ${disponibles > 0 ? "info" : "warning"}`}>
           {disponibles > 0

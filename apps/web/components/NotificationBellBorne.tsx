@@ -1,10 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/apiClient";
-import { NotificationItem } from "@/lib/types";
-import { activerNotificationsPush, statutPermissionNotifications } from "@/lib/pushNotifications";
+import { api, ApiError } from "@/lib/apiClient";
+import { NotificationBorneItem } from "@/lib/types";
+import { activerNotificationsPushBorne, pushDisponible } from "@/lib/pushNotifications";
 import { IconBell, IconCheck } from "@/components/icons";
+
+// Page publique, sans compte utilisateur : l'état lu/non-lu est propre à
+// cette tablette et vit dans son navigateur, pas en base.
+function cleLocalStorage(terminalId: string): string {
+  return `notifications-borne-lues-${terminalId}`;
+}
+
+function chargerIdsLues(terminalId: string): Set<string> {
+  try {
+    const brut = localStorage.getItem(cleLocalStorage(terminalId));
+    return new Set(brut ? (JSON.parse(brut) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function sauvegarderIdsLues(terminalId: string, ids: Set<string>) {
+  try {
+    localStorage.setItem(cleLocalStorage(terminalId), JSON.stringify([...ids]));
+  } catch {
+    // stockage indisponible (navigation privée, quota) — sans conséquence, le badge se recalculera au prochain chargement
+  }
+}
 
 function formaterDate(iso: string): string {
   const date = new Date(iso);
@@ -16,7 +39,7 @@ function formaterDate(iso: string): string {
     : date.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
 }
 
-function LigneNotification({ notification, onClic }: { notification: NotificationItem; onClic: () => void }) {
+function LigneNotification({ notification, lue, onClic }: { notification: NotificationBorneItem; lue: boolean; onClic: () => void }) {
   return (
     <button
       type="button"
@@ -29,7 +52,7 @@ function LigneNotification({ notification, onClic }: { notification: Notificatio
         textAlign: "left",
         padding: "0.6rem",
         borderRadius: "var(--radius-sm)",
-        background: notification.lu ? "transparent" : "var(--color-primary-soft)",
+        background: lue ? "transparent" : "var(--color-primary-soft)",
         marginBottom: "0.2rem",
       }}
     >
@@ -41,11 +64,11 @@ function LigneNotification({ notification, onClic }: { notification: Notificatio
           borderRadius: "50%",
           marginTop: "0.4rem",
           flexShrink: 0,
-          background: notification.lu ? "transparent" : "var(--color-primary)",
+          background: lue ? "transparent" : "var(--color-primary)",
         }}
       />
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: "0.88rem", fontWeight: notification.lu ? 400 : 600, color: notification.lu ? "var(--color-text-muted)" : "var(--color-text)" }}>
+        <div style={{ fontSize: "0.88rem", fontWeight: lue ? 400 : 600, color: lue ? "var(--color-text-muted)" : "var(--color-text)" }}>
           {notification.message}
         </div>
         <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>{formaterDate(notification.envoyeAt)}</div>
@@ -54,27 +77,32 @@ function LigneNotification({ notification, onClic }: { notification: Notificatio
   );
 }
 
-export function NotificationBell() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+export function NotificationBellBorne({ terminalId, notificationsActivesSurCeSite }: { terminalId: string; notificationsActivesSurCeSite: boolean }) {
+  const [notifications, setNotifications] = useState<NotificationBorneItem[]>([]);
+  const [idsLues, setIdsLues] = useState<Set<string>>(() => new Set());
   const [ouvert, setOuvert] = useState(false);
-  const [permission, setPermission] = useState<NotificationPermission | "indisponible">("default");
+  const [pushActive, setPushActive] = useState(false);
+  const [activationEnCours, setActivationEnCours] = useState(false);
+  const [erreurActivation, setErreurActivation] = useState<string | null>(null);
   const conteneurRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIdsLues(chargerIdsLues(terminalId));
+  }, [terminalId]);
 
   async function charger() {
     try {
-      setNotifications(await api.get<NotificationItem[]>("/api/notifications"));
+      setNotifications(await api.get<NotificationBorneItem[]>(`/api/notifications/borne/${terminalId}`));
     } catch {
       // silencieux — le badge reste sur son dernier état connu
     }
   }
 
   // Pas de polling — on charge à l'ouverture de la page puis à chaque
-  // ouverture du panneau (cf. bouton cloche ci-dessous). Les alertes Push
-  // préviennent déjà en temps réel des changements importants.
+  // ouverture du panneau (cf. bouton cloche ci-dessous).
   useEffect(() => {
     charger();
-    statutPermissionNotifications().then(setPermission);
-  }, []);
+  }, [terminalId]);
 
   useEffect(() => {
     function onClicExterieur(e: MouseEvent) {
@@ -85,23 +113,37 @@ export function NotificationBell() {
   }, []);
 
   async function activer() {
-    const ok = await activerNotificationsPush();
-    setPermission(await statutPermissionNotifications());
-    if (!ok) return;
+    setActivationEnCours(true);
+    setErreurActivation(null);
+    try {
+      setPushActive(await activerNotificationsPushBorne(terminalId));
+    } catch (err) {
+      setErreurActivation(err instanceof ApiError ? err.message : "Impossible d'activer les notifications");
+    } finally {
+      setActivationEnCours(false);
+    }
   }
 
-  async function marquerLue(id: string) {
-    await api.patch(`/api/notifications/${id}/lu`);
-    setNotifications((liste) => liste.map((n) => (n.id === id ? { ...n, lu: true } : n)));
+  function marquerLue(id: string) {
+    setIdsLues((precedent) => {
+      const suivant = new Set(precedent).add(id);
+      sauvegarderIdsLues(terminalId, suivant);
+      return suivant;
+    });
   }
 
-  async function toutMarquerLu() {
-    await api.patch("/api/notifications/lu");
-    setNotifications((liste) => liste.map((n) => ({ ...n, lu: true })));
+  function toutMarquerLu() {
+    setIdsLues((precedent) => {
+      const suivant = new Set(precedent);
+      notifications.forEach((n) => suivant.add(n.id));
+      sauvegarderIdsLues(terminalId, suivant);
+      return suivant;
+    });
   }
 
-  const nonLues = notifications.filter((n) => !n.lu);
-  const lues = notifications.filter((n) => n.lu);
+  const nonLues = notifications.filter((n) => !idsLues.has(n.id));
+  const lues = notifications.filter((n) => idsLues.has(n.id));
+  const proposerActivation = notificationsActivesSurCeSite && pushDisponible() && !pushActive;
 
   return (
     <div ref={conteneurRef} style={{ position: "relative" }}>
@@ -116,9 +158,9 @@ export function NotificationBell() {
             return prochain;
           });
         }}
-        style={{ position: "relative", display: "inline-flex" }}
+        style={{ position: "relative", display: "inline-flex", padding: "0.3rem" }}
       >
-        <IconBell size={19} />
+        <IconBell size={17} />
         {nonLues.length > 0 && (
           <span
             style={{
@@ -159,14 +201,15 @@ export function NotificationBell() {
             )}
           </div>
 
-          {permission !== "granted" && permission !== "indisponible" && (
+          {proposerActivation && (
             <div style={{ padding: "0.6rem", borderBottom: "1px solid var(--color-border)", marginBottom: "0.4rem" }}>
               <p style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
                 Activez les notifications pour être alerté dès qu&apos;un coursier arrive.
               </p>
-              <button type="button" className="btn btn-secondary" style={{ width: "100%" }} onClick={activer}>
+              <button type="button" className="btn btn-secondary" style={{ width: "100%" }} onClick={activer} disabled={activationEnCours}>
                 Activer les notifications
               </button>
+              {erreurActivation && <p style={{ margin: "0.4rem 0 0", fontSize: "0.78rem", color: "var(--color-non-disponible)" }}>{erreurActivation}</p>}
             </div>
           )}
 
@@ -182,7 +225,7 @@ export function NotificationBell() {
                 Nouvelles
               </div>
               {nonLues.map((n) => (
-                <LigneNotification key={n.id} notification={n} onClic={() => marquerLue(n.id)} />
+                <LigneNotification key={n.id} notification={n} lue={false} onClic={() => marquerLue(n.id)} />
               ))}
             </>
           )}
@@ -193,7 +236,7 @@ export function NotificationBell() {
                 Anciennes
               </div>
               {lues.map((n) => (
-                <LigneNotification key={n.id} notification={n} onClic={() => marquerLue(n.id)} />
+                <LigneNotification key={n.id} notification={n} lue={true} onClic={() => {}} />
               ))}
             </>
           )}
