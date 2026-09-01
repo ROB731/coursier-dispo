@@ -53,7 +53,6 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const [desactivation, setDesactivation] = useState<{ parNom: string | null; le: string | null } | null>(null);
   const [notificationsBorneActives, setNotificationsBorneActives] = useState(false);
   const [afficherRemonter, setAfficherRemonter] = useState(false);
-  const [actualisation, setActualisation] = useState(false);
   const [dernierRafraichissement, setDernierRafraichissement] = useState<Date | null>(null);
   const [actionEnAttente, setActionEnAttente] = useState<(() => Promise<void>) | null>(null);
   const zoneDefilementRef = useRef<HTMLDivElement>(null);
@@ -86,11 +85,11 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     setInvitationInstallation(null);
   }
 
-  // Pas de rafraîchissement automatique — le budget de requêtes de la base
-  // est trop serré. On recharge à l'ouverture, juste après une action
-  // (Entrée/Sortie/annulation, ci-dessous) et sur clic explicite d'Actualiser.
+  // Rafraîchissement des données : à l'ouverture, après chaque action, et
+  // toutes les 10 minutes en filet de sécurité (ci-dessous). Le bouton
+  // Actualiser, lui, recharge la page entière — récupère aussi le code de
+  // l'appli si une mise à jour a été déployée, pas seulement les données.
   const chargerTout = useCallback(async () => {
-    setActualisation(true);
     try {
       const data = await api.get<ReponseBorneCoursiers>(`/api/bornes/${terminalId}/coursiers`);
       setNomBorne(data.terminal.nom);
@@ -100,8 +99,6 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       setDernierRafraichissement(new Date());
     } catch (err) {
       setErreur(err instanceof ApiError ? err.message : "Point indisponible — vérifiez la connexion");
-    } finally {
-      setActualisation(false);
     }
   }, [terminalId]);
 
@@ -257,13 +254,12 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           <button
             type="button"
             className="btn-text"
-            onClick={chargerTout}
-            disabled={actualisation}
+            onClick={() => window.location.reload()}
             aria-label="Actualiser"
-            title="Actualiser"
+            title="Actualiser — recharge la page pour récupérer les dernières données et mises à jour"
             style={{ display: "inline-flex", alignItems: "center", padding: "0.3rem" }}
           >
-            <IconRefresh size={17} style={actualisation ? { animation: "tourner 0.8s linear infinite" } : undefined} />
+            <IconRefresh size={17} />
           </button>
           <NotificationBellBorne terminalId={terminalId} notificationsActivesSurCeSite={notificationsBorneActives} />
           <a
