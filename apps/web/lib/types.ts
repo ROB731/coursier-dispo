@@ -85,6 +85,13 @@ export interface NotificationItem {
   envoyeAt: string;
 }
 
+export interface NotificationBorneItem {
+  id: string;
+  type: "COURSIER_ARRIVE" | "AUCUN_DISPONIBLE";
+  message: string;
+  envoyeAt: string;
+}
+
 export interface Compte {
   id: string;
   identifiant: string;

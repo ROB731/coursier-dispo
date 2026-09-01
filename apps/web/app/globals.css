@@ -585,6 +585,15 @@ label {
   }
 }
 
+@keyframes tourner {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .alert-banner {
   padding: 0.85rem 1.1rem;
   border-radius: var(--radius);

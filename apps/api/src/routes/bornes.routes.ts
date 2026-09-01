@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma";
 import { ForbiddenError, NotFoundError } from "../lib/errors";
 import { validateBody } from "../middleware/validate";
 import { listerCoursiers } from "../services/coursierService";
-import { calculerStatutDetaille } from "../services/statutService";
+import { calculerStatutsDetailleParLot } from "../services/statutService";
 import { annulerEvenement, creerEvenementBorne } from "../services/evenementService";
 import { listerEmployesBorne, pointerEmployeBorne } from "../services/presenceEmployeService";
 
@@ -57,21 +57,20 @@ bornesRouter.get("/:terminalId/coursiers", async (req, res) => {
   }
 
   const coursiers = await listerCoursiers({ siteId: req.terminal!.siteId, actifSeulement: true });
-  const avecStatut = await Promise.all(
-    coursiers.map(async (c) => {
-      const detail = await calculerStatutDetaille(c.id);
-      return {
-        id: c.id,
-        code: c.code,
-        prenom: c.prenom,
-        nom: c.nom,
-        photoUrl: c.photoUrl,
-        statut: detail.statut,
-        horsPlageHoraire: detail.horsPlageHoraire,
-        journeeTerminee: detail.journeeTerminee,
-      };
-    })
-  );
+  const details = await calculerStatutsDetailleParLot(coursiers);
+  const avecStatut = coursiers.map((c) => {
+    const detail = details.get(c.id)!;
+    return {
+      id: c.id,
+      code: c.code,
+      prenom: c.prenom,
+      nom: c.nom,
+      photoUrl: c.photoUrl,
+      statut: detail.statut,
+      horsPlageHoraire: detail.horsPlageHoraire,
+      journeeTerminee: detail.journeeTerminee,
+    };
+  });
   res.json({ terminal: req.terminal, desactive: false, coursiers: avecStatut });
 });
 

@@ -31,6 +31,14 @@ async function notifier(siteId: string, params: { type: "COURSIER_ARRIVE" | "AUC
   const destinataires = await destinatairesDuSite(siteId);
   const abonnementsBorne = await abonnementsBorneDuSite(siteId);
 
+  await prisma.notificationBorne.createMany({
+    data: abonnementsBorne.map((sub) => ({
+      terminalId: sub.terminalId,
+      type: params.type,
+      message: params.message,
+    })),
+  });
+
   await Promise.all(
     destinataires.map(async (utilisateur) => {
       await prisma.notification.create({
