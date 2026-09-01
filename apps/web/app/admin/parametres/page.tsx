@@ -27,6 +27,13 @@ interface Terminal {
   site: { nom: string };
 }
 
+interface StatutCodeBorne {
+  configure: boolean;
+  actif: boolean;
+  appareilLie: boolean;
+  lieLe: string | null;
+}
+
 export default function ParametresPage() {
   const { showToast } = useToast();
   const { utilisateur } = useUtilisateur();
@@ -39,6 +46,14 @@ export default function ParametresPage() {
   const [configurationAccueil, setConfigurationAccueil] = useState<ConfigurationAccueil | null>(null);
   const [terminaux, setTerminaux] = useState<Terminal[]>([]);
   const [enregistrementAccueil, setEnregistrementAccueil] = useState(false);
+  const [statutCodeBorne, setStatutCodeBorne] = useState<StatutCodeBorne | null>(null);
+  const [codeGenere, setCodeGenere] = useState<string | null>(null);
+  const [actionCodeBorneEnCours, setActionCodeBorneEnCours] = useState(false);
+  const [erreurCodeBorne, setErreurCodeBorne] = useState<string | null>(null);
+
+  function chargerStatutCodeBorne() {
+    api.get<StatutCodeBorne>("/api/parametres/code-borne").then(setStatutCodeBorne);
+  }
 
   useEffect(() => {
     api.get<Entreprise[]>("/api/entreprises").then((liste) => {
@@ -48,7 +63,46 @@ export default function ParametresPage() {
     if (!estSuperAdmin) return;
     api.get<ConfigurationAccueil>("/api/parametres/accueil").then(setConfigurationAccueil);
     api.get<Terminal[]>("/api/terminaux").then(setTerminaux);
+    chargerStatutCodeBorne();
   }, [estSuperAdmin]);
+
+  async function genererCodeBorne() {
+    setActionCodeBorneEnCours(true);
+    setErreurCodeBorne(null);
+    try {
+      const { code } = await api.post<{ code: string }>("/api/parametres/code-borne/generer");
+      setCodeGenere(code);
+      chargerStatutCodeBorne();
+    } catch (err) {
+      setErreurCodeBorne(err instanceof ApiError ? err.message : "Échec de la génération du code");
+    } finally {
+      setActionCodeBorneEnCours(false);
+    }
+  }
+
+  async function basculerActivationCodeBorne(actif: boolean) {
+    setActionCodeBorneEnCours(true);
+    setErreurCodeBorne(null);
+    try {
+      setStatutCodeBorne(await api.patch<StatutCodeBorne>("/api/parametres/code-borne/actif", { actif }));
+    } catch (err) {
+      setErreurCodeBorne(err instanceof ApiError ? err.message : "Échec de l'opération");
+    } finally {
+      setActionCodeBorneEnCours(false);
+    }
+  }
+
+  async function delierAppareilCodeBorne() {
+    setActionCodeBorneEnCours(true);
+    setErreurCodeBorne(null);
+    try {
+      setStatutCodeBorne(await api.post<StatutCodeBorne>("/api/parametres/code-borne/delier"));
+    } catch (err) {
+      setErreurCodeBorne(err instanceof ApiError ? err.message : "Échec de l'opération");
+    } finally {
+      setActionCodeBorneEnCours(false);
+    }
+  }
 
   useEffect(() => {
     if (!entrepriseId) return;
@@ -149,6 +203,63 @@ export default function ParametresPage() {
             {enregistrementAccueil ? "Enregistrement…" : "Enregistrer la page d'accueil"}
           </button>
         </form>
+      )}
+
+      {estSuperAdmin && statutCodeBorne && (
+        <div style={{ marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.05rem" }}>Code d'accès de la borne</h2>
+          <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", margin: "0 0 0.75rem" }}>
+            Seule la personne qui connaît ce code peut changer l'état d'un coursier à la borne. Il reste valable
+            indéfiniment jusqu'à ce que vous le désactiviez ici.
+          </p>
+
+          {codeGenere && (
+            <div className="alert-banner info" style={{ margin: "0 0 1rem" }}>
+              Nouveau code : <strong style={{ fontSize: "1.2rem", letterSpacing: "0.2em" }}>{codeGenere}</strong>
+              <br />
+              À communiquer maintenant à la personne autorisée — il ne sera plus jamais affiché.
+            </div>
+          )}
+
+          <p style={{ fontSize: "0.9rem", margin: "0 0 0.5rem" }}>
+            Statut :{" "}
+            {!statutCodeBorne.configure
+              ? "aucun code généré"
+              : statutCodeBorne.actif
+                ? "actif"
+                : "désactivé"}
+            {statutCodeBorne.configure && statutCodeBorne.appareilLie && (
+              <>
+                {" "}
+                · lié à un appareil
+                {statutCodeBorne.lieLe && ` depuis le ${new Date(statutCodeBorne.lieLe).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}`}
+              </>
+            )}
+          </p>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            <button type="button" className="btn btn-secondary" disabled={actionCodeBorneEnCours} onClick={genererCodeBorne}>
+              {statutCodeBorne.configure ? "Générer un nouveau code" : "Générer un code"}
+            </button>
+            {statutCodeBorne.configure && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={actionCodeBorneEnCours}
+                onClick={() => basculerActivationCodeBorne(!statutCodeBorne.actif)}
+              >
+                {statutCodeBorne.actif ? "Désactiver" : "Réactiver"}
+              </button>
+            )}
+            {statutCodeBorne.appareilLie && (
+              <button type="button" className="btn btn-secondary" disabled={actionCodeBorneEnCours} onClick={delierAppareilCodeBorne}>
+                Délier l'appareil
+              </button>
+            )}
+          </div>
+
+          {erreurCodeBorne && <p className="form-error">{erreurCodeBorne}</p>}
+        </div>
       )}
 
       {entreprises.length > 1 && (

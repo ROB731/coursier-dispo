@@ -69,7 +69,7 @@ model Entreprise {
   sites                Site[]
   profilsHoraires      ProfilHoraire[]
   parametres           ParametresApplication?
-  utilisateursDirects  Utilisateur[]         @relation("UtilisateurEntreprise")
+  utilisateursDirects  Utilisateur[]          @relation("UtilisateurEntreprise")
   directeurEntreprises DirecteurEntreprise[]
   journalActivite      JournalActivite[]
   employes             Employe[]
@@ -94,39 +94,39 @@ model DirecteurEntreprise {
 // ---------- Comptes ----------
 
 model Utilisateur {
-  id                  String            @id @default(uuid())
-  identifiant         String            @unique
-  motDePasseHash      String
-  role                RoleUtilisateur
-  nomComplet          String
-  telephone           String?
-  email               String?
-  siteParDefaut       Site?             @relation("UtilisateurSiteParDefaut", fields: [siteParDefautId], references: [id])
-  siteParDefautId     String?
+  id              String          @id @default(uuid())
+  identifiant     String          @unique
+  motDePasseHash  String
+  role            RoleUtilisateur
+  nomComplet      String
+  telephone       String?
+  email           String?
+  siteParDefaut   Site?           @relation("UtilisateurSiteParDefaut", fields: [siteParDefautId], references: [id])
+  siteParDefautId String?
 
   // GERANTE uniquement : rattachement direct à une entreprise. Alternative à directeurId.
-  entreprise          Entreprise?       @relation("UtilisateurEntreprise", fields: [entrepriseId], references: [id])
-  entrepriseId        String?
+  entreprise   Entreprise? @relation("UtilisateurEntreprise", fields: [entrepriseId], references: [id])
+  entrepriseId String?
 
   // GERANTE uniquement : rattachement à un directeur, dont le périmètre d'entreprises est hérité.
-  directeur           Utilisateur?      @relation("GeranteDirecteur", fields: [directeurId], references: [id])
-  directeurId         String?
-  gerantes            Utilisateur[]     @relation("GeranteDirecteur")
+  directeur   Utilisateur?  @relation("GeranteDirecteur", fields: [directeurId], references: [id])
+  directeurId String?
+  gerantes    Utilisateur[] @relation("GeranteDirecteur")
 
   // DIRECTEUR uniquement : entreprises supervisées.
   directeurEntreprises DirecteurEntreprise[]
 
-  actif               Boolean           @default(true)
+  actif               Boolean   @default(true)
   derniereConnexionAt DateTime?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  evenementsAnnulesPar Evenement[]      @relation("EvenementCreePar")
-  pushSubscriptions    PushSubscription[]
-  notifications        Notification[]
-  journalActivite      JournalActivite[]
-  terminauxDesactives  Terminal[]       @relation("TerminalDesactivePar")
-  presencesEnregistrees PresenceEmploye[] @relation("PresenceEnregistreePar")
+  evenementsAnnulesPar  Evenement[]        @relation("EvenementCreePar")
+  pushSubscriptions     PushSubscription[]
+  notifications         Notification[]
+  journalActivite       JournalActivite[]
+  terminauxDesactives   Terminal[]         @relation("TerminalDesactivePar")
+  presencesEnregistrees PresenceEmploye[]  @relation("PresenceEnregistreePar")
 
   @@index([role])
   @@index([entrepriseId])
@@ -167,9 +167,9 @@ model Site {
 
   coursierSites         CoursierSite[]
   terminaux             Terminal[]
-  evenements             Evenement[]
-  utilisateursParDefaut  Utilisateur[]  @relation("UtilisateurSiteParDefaut")
-  employes               Employe[]
+  evenements            Evenement[]
+  utilisateursParDefaut Utilisateur[]  @relation("UtilisateurSiteParDefaut")
+  employes              Employe[]
 
   @@index([actif])
   @@index([entrepriseId])
@@ -186,15 +186,15 @@ model Terminal {
 
   // Traçabilité de la désactivation — nom figé (snapshot) pour rester
   // affichable même si le compte est ensuite supprimé/anonymisé.
-  desactivePar       Utilisateur? @relation("TerminalDesactivePar", fields: [desactiveParId], references: [id], onDelete: SetNull)
-  desactiveParId     String?
-  desactiveParNom    String?
-  desactiveLe        DateTime?
+  desactivePar    Utilisateur? @relation("TerminalDesactivePar", fields: [desactiveParId], references: [id], onDelete: SetNull)
+  desactiveParId  String?
+  desactiveParNom String?
+  desactiveLe     DateTime?
 
-  evenements         Evenement[]
+  evenements           Evenement[]
   configurationAccueil ConfigurationPlateforme?
-  pushSubscriptions  PushSubscriptionBorne[]
-  notificationsBorne NotificationBorne[]
+  pushSubscriptions    PushSubscriptionBorne[]
+  notificationsBorne   NotificationBorne[]
 
   @@index([siteId])
 }
@@ -225,9 +225,9 @@ model Coursier {
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
 
-  coursierSites           CoursierSite[]
-  evenements              Evenement[]
-  notifications           Notification[]
+  coursierSites CoursierSite[]
+  evenements    Evenement[]
+  notifications Notification[]
 
   @@index([statutActif])
   @@index([profilHoraireId])
@@ -263,7 +263,7 @@ model ProfilHoraire {
   estParDefaut Boolean    @default(false)
   actif        Boolean    @default(true)
 
-  coursiers    Coursier[]
+  coursiers Coursier[]
 
   @@index([entrepriseId])
 }
@@ -278,9 +278,9 @@ model Evenement {
   siteId               String
   type                 TypeEvenement
   // Renseigné uniquement si type = ANNULATION : pointe vers l'événement annulé.
-  evenementAnnule       Evenement?      @relation("Annulation", fields: [evenementAnnuleId], references: [id])
-  evenementAnnuleId     String?         @unique
-  annulePar             Evenement?      @relation("Annulation")
+  evenementAnnule      Evenement?      @relation("Annulation", fields: [evenementAnnuleId], references: [id])
+  evenementAnnuleId    String?         @unique
+  annulePar            Evenement?      @relation("Annulation")
   source               SourceEvenement
   terminal             Terminal?       @relation(fields: [terminalId], references: [id], onDelete: SetNull)
   terminalId           String?
@@ -330,15 +330,15 @@ model NotificationBorne {
 }
 
 model Notification {
-  id            String            @id @default(uuid())
-  utilisateur   Utilisateur       @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  id            String           @id @default(uuid())
+  utilisateur   Utilisateur      @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
   utilisateurId String
   type          TypeNotification
-  coursier      Coursier?         @relation(fields: [coursierId], references: [id], onDelete: SetNull)
+  coursier      Coursier?        @relation(fields: [coursierId], references: [id], onDelete: SetNull)
   coursierId    String?
   message       String
-  lu            Boolean           @default(false)
-  envoyeAt      DateTime          @default(now())
+  lu            Boolean          @default(false)
+  envoyeAt      DateTime         @default(now())
 
   @@index([utilisateurId, lu])
 }
@@ -346,7 +346,7 @@ model Notification {
 // ---------- Paramètres (un jeu par entreprise) ----------
 
 model ParametresApplication {
-  id                            String      @id @default(uuid())
+  id                            String     @id @default(uuid())
   entreprise                    Entreprise @relation(fields: [entrepriseId], references: [id], onDelete: Cascade)
   entrepriseId                  String     @unique
   modeMultiSite                 Boolean    @default(false)
@@ -358,12 +358,20 @@ model ParametresApplication {
 // Configuration plateforme unique : la page d'accueil est choisie avant
 // toute authentification et ne dépend donc pas d'une entreprise.
 model ConfigurationPlateforme {
-  id                  String          @id @default("global")
-  pageAccueil         TypePageAccueil @default(CONNEXION)
-  terminalAccueil     Terminal?       @relation(fields: [terminalAccueilId], references: [id], onDelete: SetNull)
-  terminalAccueilId   String?         @unique
-  notificationsBorneActives Boolean    @default(false)
-  updatedAt           DateTime        @updatedAt
+  id                        String          @id @default("global")
+  pageAccueil               TypePageAccueil @default(CONNEXION)
+  terminalAccueil           Terminal?       @relation(fields: [terminalAccueilId], references: [id], onDelete: SetNull)
+  terminalAccueilId         String?         @unique
+  notificationsBorneActives Boolean         @default(false)
+  // Code d'accès permanent (gardien) requis à la borne pour modifier l'état
+  // d'un coursier — cf. codeBorneService. Haché, jamais stocké en clair.
+  // Lié au premier appareil qui s'authentifie avec succès (codeBorneAppareilId) ;
+  // un autre appareil est refusé tant que le Super Admin ne l'a pas délié.
+  codeBorneHash             String?
+  codeBorneActif            Boolean         @default(false)
+  codeBorneAppareilId       String?
+  codeBorneLieLe            DateTime?
+  updatedAt                 DateTime        @updatedAt
 }
 
 // ---------- Employés (registre de présence/absence) ----------
@@ -401,7 +409,7 @@ model Employe {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  presences    PresenceEmploye[]
+  presences PresenceEmploye[]
 
   @@index([entrepriseId])
   @@index([siteId])
