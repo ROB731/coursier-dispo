@@ -27,6 +27,7 @@ export interface CoursierBorne {
   statut: Statut;
   horsPlageHoraire: boolean;
   journeeTerminee: boolean;
+  depuis: string | null;
 }
 
 export interface StatutCoursier {

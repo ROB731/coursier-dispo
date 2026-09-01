@@ -9,12 +9,7 @@ import { StatutBadge } from "@/components/StatutBadge";
 import { TopBar } from "@/components/TopBar";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { IconMenu } from "@/components/icons";
-
-function formatDepuis(depuis: string | null): string {
-  if (!depuis) return "";
-  const date = new Date(depuis);
-  return `depuis ${date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
-}
+import { formatDepuis } from "@/lib/dates";
 
 export default function TableauDeBordPage() {
   const { utilisateur, chargement } = useUtilisateur();

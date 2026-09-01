@@ -85,6 +85,7 @@ bornesRouter.get("/:terminalId/coursiers", async (req, res) => {
       statut: detail.statut,
       horsPlageHoraire: detail.horsPlageHoraire,
       journeeTerminee: detail.journeeTerminee,
+      depuis: detail.depuis,
     };
   });
   res.json({ terminal: req.terminal, desactive: false, coursiers: avecStatut });
