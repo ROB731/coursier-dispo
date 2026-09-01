@@ -38,3 +38,12 @@ export class ValidationError extends AppError {
     super(400, message, "VALIDATION_ERROR");
   }
 }
+
+// Distinct de UnauthorizedError : ce code précis permet au frontend de la
+// borne de distinguer "il faut ouvrir le modal du code d'accès" de toute
+// autre erreur 401, sans dépendre du texte du message.
+export class AuthentificationBorneRequiseError extends AppError {
+  constructor(message = "Authentification requise pour modifier l'état d'un coursier") {
+    super(401, message, "AUTHENTIFICATION_BORNE_REQUISE");
+  }
+}

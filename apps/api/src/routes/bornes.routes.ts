@@ -7,8 +7,24 @@ import { listerCoursiers } from "../services/coursierService";
 import { calculerStatutsDetailleParLot } from "../services/statutService";
 import { annulerEvenement, creerEvenementBorne } from "../services/evenementService";
 import { listerEmployesBorne, pointerEmployeBorne } from "../services/presenceEmployeService";
+import { authentifierAppareilBorne, verifierAccesAppareilBorne } from "../services/codeBorneService";
 
 export const bornesRouter = Router();
+
+// Doit être déclarée avant `bornesRouter.use("/:terminalId", chargerTerminal)`
+// ci-dessous : ce middleware capture tout premier segment (y compris
+// "authentifier") comme un terminalId et renverrait 404 sinon. Le code
+// d'accès est global (un seul gardien pour tout le système), pas propre à
+// une borne — cette route n'est donc volontairement pas imbriquée sous /:terminalId.
+const authentifierSchema = z.object({
+  code: z.string().min(1),
+  appareilId: z.string().min(1),
+});
+
+bornesRouter.post("/authentifier", validateBody(authentifierSchema), async (req, res) => {
+  await authentifierAppareilBorne(req.body.code, req.body.appareilId);
+  res.status(204).send();
+});
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -77,10 +93,12 @@ bornesRouter.get("/:terminalId/coursiers", async (req, res) => {
 const creerEvenementSchema = z.object({
   coursierId: z.string().uuid(),
   type: z.enum(["ENTREE", "SORTIE"]),
+  appareilId: z.string().optional(),
 });
 
 bornesRouter.post("/:terminalId/evenements", validateBody(creerEvenementSchema), async (req, res) => {
   if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
+  await verifierAccesAppareilBorne(req.body.appareilId);
   const evenement = await creerEvenementBorne({
     coursierId: req.body.coursierId,
     type: req.body.type,
@@ -89,8 +107,11 @@ bornesRouter.post("/:terminalId/evenements", validateBody(creerEvenementSchema),
   res.status(201).json(evenement);
 });
 
-bornesRouter.post("/:terminalId/evenements/:id/annuler", async (req, res) => {
+const annulerEvenementSchema = z.object({ appareilId: z.string().optional() });
+
+bornesRouter.post("/:terminalId/evenements/:id/annuler", validateBody(annulerEvenementSchema), async (req, res) => {
   if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
+  await verifierAccesAppareilBorne(req.body.appareilId);
   const annulation = await annulerEvenement({
     evenementId: req.params.id,
     source: "BORNE",

@@ -8,6 +8,12 @@ import { journaliser } from "../middleware/journalActivite";
 import { getParametres, modifierParametres } from "../services/parametresService";
 import { ValidationError } from "../lib/errors";
 import { getConfigurationAccueil, modifierConfigurationAccueil } from "../services/configurationPlateformeService";
+import {
+  activerCodeBorne,
+  delierAppareilBorne,
+  genererCodeBorne,
+  getStatutCodeBorne,
+} from "../services/codeBorneService";
 
 export const parametresRouter = Router();
 
@@ -55,5 +61,44 @@ parametresRouter.patch(
   journaliser("Modification de la page d'accueil"),
   async (req, res) => {
     res.json(await modifierConfigurationAccueil(req.body));
+  }
+);
+
+// ---------- Code d'accès permanent de la borne (gardien) ----------
+// Réservé au Super Admin : lui seul génère/active/désactive ce code et peut
+// délier l'appareil auquel il est attaché. Voir codeBorneService pour le
+// détail du modèle (un seul code global, lié au premier appareil qui s'en sert).
+
+parametresRouter.get("/code-borne", requireRole("SUPER_ADMIN"), async (_req, res) => {
+  res.json(await getStatutCodeBorne());
+});
+
+parametresRouter.post(
+  "/code-borne/generer",
+  requireRole("SUPER_ADMIN"),
+  journaliser("Génération d'un nouveau code d'accès borne"),
+  async (_req, res) => {
+    res.status(201).json(await genererCodeBorne());
+  }
+);
+
+const activationCodeBorneSchema = z.object({ actif: z.boolean() });
+
+parametresRouter.patch(
+  "/code-borne/actif",
+  requireRole("SUPER_ADMIN"),
+  validateBody(activationCodeBorneSchema),
+  journaliser("Activation/désactivation du code d'accès borne"),
+  async (req, res) => {
+    res.json(await activerCodeBorne(req.body.actif));
+  }
+);
+
+parametresRouter.post(
+  "/code-borne/delier",
+  requireRole("SUPER_ADMIN"),
+  journaliser("Déliaison de l'appareil du code d'accès borne"),
+  async (_req, res) => {
+    res.json(await delierAppareilBorne());
   }
 );

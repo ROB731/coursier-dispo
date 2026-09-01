@@ -11,6 +11,8 @@ import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { IconBan, IconChevronDown, IconDownload, IconLogIn, IconRefresh } from "@/components/icons";
 import { Modal } from "@/components/Modal";
 import { NotificationBellBorne } from "@/components/NotificationBellBorne";
+import { AuthentificationBorneModal } from "@/components/AuthentificationBorneModal";
+import { getAppareilId } from "@/lib/appareilId";
 
 interface ReponseBorneCoursiers {
   terminal: { id: string; siteId: string; nom: string };
@@ -26,6 +28,11 @@ interface EvenementInstallationPWA extends Event {
 }
 
 const DUREE_TOAST_MS = 5_000;
+// Filet de sécurité, pas du temps réel : évite qu'un écran laissé sans
+// interaction reste périmé indéfiniment, tout en restant très économe en
+// requêtes (144/jour) — le rafraîchissement principal reste le clic sur
+// Actualiser et le rechargement après chaque action.
+const INTERVALLE_RAFRAICHISSEMENT_MS = 10 * 60 * 1000;
 
 function formatHeure(date: Date): string {
   return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -48,6 +55,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const [afficherRemonter, setAfficherRemonter] = useState(false);
   const [actualisation, setActualisation] = useState(false);
   const [dernierRafraichissement, setDernierRafraichissement] = useState<Date | null>(null);
+  const [actionEnAttente, setActionEnAttente] = useState<(() => Promise<void>) | null>(null);
   const zoneDefilementRef = useRef<HTMLDivElement>(null);
 
   function surDefilement() {
@@ -105,6 +113,8 @@ export default function BornePage({ params }: { params: { terminalId: string } }
 
   useEffect(() => {
     chargerTout();
+    const intervalle = setInterval(chargerTout, INTERVALLE_RAFRAICHISSEMENT_MS);
+    return () => clearInterval(intervalle);
   }, [chargerTout]);
 
   useEffect(() => {
@@ -121,20 +131,39 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     return coursiers.filter((c) => c.code.toLowerCase().includes(q) || `${c.prenom} ${c.nom}`.toLowerCase().includes(q));
   }, [coursiers, recherche]);
 
+  // Si l'API refuse faute de code d'accès validé sur cet appareil, on garde
+  // l'action en attente et on la rejoue automatiquement dès que le modal
+  // d'authentification réussit — l'utilisateur n'a pas à retaper sa demande.
+  async function executerOuDemanderCode(action: () => Promise<void>) {
+    try {
+      await action();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "AUTHENTIFICATION_BORNE_REQUISE") {
+        setActionEnAttente(() => action);
+        return;
+      }
+      throw err;
+    }
+  }
+
   async function confirmerActionCoursier(type: "ENTREE" | "SORTIE") {
     if (!selectionCoursier) return;
+    const coursier = selectionCoursier;
     setEnCours(true);
     try {
-      const evenement = await api.post<{ id: string }>(`/api/bornes/${terminalId}/evenements`, {
-        coursierId: selectionCoursier.id,
-        type,
+      await executerOuDemanderCode(async () => {
+        const evenement = await api.post<{ id: string }>(`/api/bornes/${terminalId}/evenements`, {
+          coursierId: coursier.id,
+          type,
+          appareilId: getAppareilId(),
+        });
+        setToast({
+          message: `${type === "ENTREE" ? "Entrée" : "Sortie"} enregistrée pour ${coursier.prenom} ${coursier.nom}`,
+          evenementId: evenement.id,
+        });
+        setSelectionCoursier(null);
+        await chargerTout();
       });
-      setToast({
-        message: `${type === "ENTREE" ? "Entrée" : "Sortie"} enregistrée pour ${selectionCoursier.prenom} ${selectionCoursier.nom}`,
-        evenementId: evenement.id,
-      });
-      setSelectionCoursier(null);
-      await chargerTout();
     } catch (err) {
       setErreur(err instanceof ApiError ? err.message : "Échec de l'enregistrement");
     } finally {
@@ -147,10 +176,13 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       setToast(null);
       return;
     }
+    const evenementId = toast.evenementId;
     try {
-      await api.post(`/api/bornes/${terminalId}/evenements/${toast.evenementId}/annuler`, {});
-      setToast(null);
-      await chargerTout();
+      await executerOuDemanderCode(async () => {
+        await api.post(`/api/bornes/${terminalId}/evenements/${evenementId}/annuler`, { appareilId: getAppareilId() });
+        setToast(null);
+        await chargerTout();
+      });
     } catch (err) {
       setErreur(err instanceof ApiError ? err.message : "Échec de l'annulation");
     }
@@ -307,6 +339,17 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       {toast && <Toast message={toast.message} onUndo={toast.evenementId ? annulerDerniereAction : undefined} />}
 
       {detailsOuvert && <RecapDetailsModal coursiers={coursiers} onClose={() => setDetailsOuvert(false)} />}
+
+      {actionEnAttente && (
+        <AuthentificationBorneModal
+          onClose={() => setActionEnAttente(null)}
+          onSucces={() => {
+            const action = actionEnAttente;
+            setActionEnAttente(null);
+            action?.();
+          }}
+        />
+      )}
     </div>
   );
 }
