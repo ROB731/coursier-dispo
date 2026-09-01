@@ -1,4 +1,5 @@
 import { CoursierBorne } from "@/lib/types";
+import { formatDepuis } from "@/lib/dates";
 import { StatutBadge } from "./StatutBadge";
 import { IconZoom } from "./icons";
 
@@ -75,6 +76,11 @@ export function CoursierCard({
       <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", textAlign: "center" }}>
         {coursier.prenom} {coursier.nom}
       </span>
+      {coursier.depuis && (
+        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
+          {coursier.statut === "DISPONIBLE" ? "Entrée" : "Sortie"} {formatDepuis(coursier.depuis)}
+        </span>
+      )}
     </div>
   );
 }

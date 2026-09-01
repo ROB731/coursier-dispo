@@ -8,6 +8,7 @@ import { ActiviteModal } from "@/components/ActiviteModal";
 import { useUtilisateur } from "@/lib/useUtilisateur";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { StatutBadge } from "@/components/StatutBadge";
+import { formatDepuis } from "@/lib/dates";
 import { lireAfficherStatsGestion } from "@/lib/preferencesTableauDeBord";
 import { IconArrowRight, IconBan, IconCheckCircle, IconRefresh, IconUsers } from "@/components/icons";
 import { useToast } from "@/components/ToastProvider";
@@ -278,6 +279,11 @@ export default function TableauDeBordAdminPage() {
                     {s.prenom} {s.nom}
                   </strong>
                   <span style={{ color: "var(--color-text-muted)", fontSize: "0.82rem" }}>{s.code}</span>
+                  {s.depuis && (
+                    <div style={{ color: "var(--color-text-muted)", fontSize: "0.78rem" }}>
+                      {s.statut === "DISPONIBLE" ? "Entrée" : "Sortie"} {formatDepuis(s.depuis)}
+                    </div>
+                  )}
                 </div>
                 <StatutBadge statut={s.statut} journeeTerminee={s.journeeTerminee} />
               </div>
