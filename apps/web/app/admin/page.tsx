@@ -280,9 +280,9 @@ export default function TableauDeBordAdminPage() {
                   </strong>
                   <span style={{ color: "var(--color-text-muted)", fontSize: "0.82rem" }}>{s.code}</span>
                   {s.depuis && (
-                    <div style={{ color: "var(--color-text-muted)", fontSize: "0.78rem" }}>
+                    <small style={{ display: "block", color: "var(--color-text-muted)", fontSize: "0.78rem" }}>
                       {s.statut === "DISPONIBLE" ? "Entrée" : "Sortie"} {formatDepuis(s.depuis)}
-                    </div>
+                    </small>
                   )}
                 </div>
                 <StatutBadge statut={s.statut} journeeTerminee={s.journeeTerminee} />

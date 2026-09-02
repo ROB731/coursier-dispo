@@ -102,9 +102,9 @@ export function RecapDetailsModal({ coursiers, onClose }: { coursiers: CoursierB
                 </strong>
                 <span style={{ color: "var(--color-text-muted)", marginLeft: "0.4rem", fontSize: "0.85rem" }}>{c.code}</span>
                 {c.depuis && (
-                  <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
+                  <small style={{ display: "block", fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
                     {c.statut === "DISPONIBLE" ? "Entrée" : "Sortie"} {formatDepuis(c.depuis)}
-                  </div>
+                  </small>
                 )}
               </div>
               <StatutBadge statut={c.statut} journeeTerminee={c.journeeTerminee} contexte="borne" />

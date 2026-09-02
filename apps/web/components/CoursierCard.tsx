@@ -77,9 +77,9 @@ export function CoursierCard({
         {coursier.prenom} {coursier.nom}
       </span>
       {coursier.depuis && (
-        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
+        <small style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
           {coursier.statut === "DISPONIBLE" ? "Entrée" : "Sortie"} {formatDepuis(coursier.depuis)}
-        </span>
+        </small>
       )}
     </div>
   );

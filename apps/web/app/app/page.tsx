@@ -102,7 +102,7 @@ export default function TableauDeBordPage() {
                     {s.prenom} {s.nom}
                   </strong>
                   <span style={{ color: "var(--color-text-muted)", marginLeft: "0.5rem" }}>{s.code}</span>
-                  <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>{formatDepuis(s.depuis)}</div>
+                  <small style={{ display: "block", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>{formatDepuis(s.depuis)}</small>
                 </div>
                 <StatutBadge statut={s.statut} journeeTerminee={s.journeeTerminee} />
               </div>
