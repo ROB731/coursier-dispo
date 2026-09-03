@@ -5,6 +5,7 @@ import { validateBody } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
 import { journaliser } from "../middleware/journalActivite";
 import { login, hashPassword, verifyPassword } from "../services/authService";
+import { getCodePersonnel } from "../services/codeBorneService";
 import { prisma } from "../lib/prisma";
 import { env } from "../env";
 import { UnauthorizedError, ValidationError } from "../lib/errors";
@@ -106,6 +107,13 @@ authRouter.patch(
 const motDePasseMoiSchema = z.object({
   motDePasseActuel: z.string().min(1),
   nouveauMotDePasse: z.string().min(4),
+});
+
+// Code d'accès borne (rôle CONSULTATION) rattaché à ce compte — permet au
+// titulaire de le retrouver lui-même sans repasser par le Super Admin,
+// justement pour éviter les reconnexions répétées à la borne.
+authRouter.get("/me/code-borne", requireAuth, async (req, res) => {
+  res.json(await getCodePersonnel(req.utilisateur!.id));
 });
 
 authRouter.post(

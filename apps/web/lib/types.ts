@@ -35,6 +35,25 @@ export interface EtatJournee {
   depuis: string | null;
 }
 
+export type RoleCodeBorne = "GARDIEN" | "CONSULTATION";
+
+export interface RoleAppareilBorne {
+  role: RoleCodeBorne;
+  nom: string;
+}
+
+export interface EvenementHistorique {
+  id: string;
+  type: "ENTREE" | "SORTIE" | "ANNULATION" | "CLOTURE_AUTO";
+  horodatage: string;
+  source: "BORNE" | "COMPTE" | "SYSTEME";
+}
+
+export interface HistoriqueCoursierJour {
+  date: string;
+  evenements: EvenementHistorique[];
+}
+
 export interface StatutCoursier {
   coursierId: string;
   code: string;

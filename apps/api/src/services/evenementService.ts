@@ -152,6 +152,37 @@ interface HistoriqueFiltres {
   jusqua?: Date;
 }
 
+/**
+ * Historique d'un coursier pour un jour donné, pour le modal de
+ * consultation à la borne (rôle CONSULTATION) — valide d'abord que le
+ * coursier est bien rattaché au site de cette borne, pour empêcher de
+ * consulter l'historique d'un coursier d'un autre site en devinant son id.
+ */
+export async function getHistoriqueCoursierJourBorne(coursierId: string, siteId: string, date?: string) {
+  const rattachement = await prisma.coursierSite.findFirst({ where: { coursierId, siteId, actif: true } });
+  if (!rattachement) throw new ValidationError("Ce coursier n'est pas rattaché au site de cette borne");
+
+  const jour = date ? new Date(date) : new Date();
+  if (Number.isNaN(jour.getTime())) throw new ValidationError("Date invalide");
+
+  const depuis = new Date(jour.getFullYear(), jour.getMonth(), jour.getDate(), 0, 0, 0, 0);
+  const jusqua = new Date(jour.getFullYear(), jour.getMonth(), jour.getDate(), 23, 59, 59, 999);
+
+  const evenements = await getHistorique({ coursierId, siteId, depuis, jusqua });
+  return {
+    date: depuis.toISOString().slice(0, 10),
+    // Page publique : on ne renvoie que le strict nécessaire à l'affichage,
+    // jamais les informations liées au compte auteur (getHistorique les
+    // inclut pour l'écran admin authentifié, pas fait pour être exposé ici).
+    evenements: evenements.map((e) => ({
+      id: e.id,
+      type: e.type,
+      horodatage: e.horodatage,
+      source: e.source,
+    })),
+  };
+}
+
 export async function getHistorique(filtres: HistoriqueFiltres, entreprisesAccessibles: string[] | null = null) {
   return prisma.evenement.findMany({
     where: {

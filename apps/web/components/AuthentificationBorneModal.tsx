@@ -3,13 +3,22 @@
 import { FormEvent, useState } from "react";
 import { api, ApiError } from "@/lib/apiClient";
 import { getAppareilId } from "@/lib/appareilId";
+import { RoleAppareilBorne } from "@/lib/types";
 import { Modal } from "@/components/Modal";
 
-/** Modal déclenché automatiquement quand la borne refuse un changement
- * d'état (code AUTHENTIFICATION_BORNE_REQUISE) — demande le code permanent
- * du gardien. Fermer sans code n'a aucun effet ; un bon code lie cet
- * appareil et reste valide jusqu'à ce que le Super Admin le désactive. */
-export function AuthentificationBorneModal({ onSucces, onClose }: { onSucces: () => void; onClose: () => void }) {
+/** Modal d'authentification borne — déclenché automatiquement quand une
+ * action est refusée faute de rôle suffisant, ou ouvert directement via le
+ * bouton "Se connecter". Fermer sans code n'a aucun effet ; un bon code lie
+ * cet appareil et reste valide jusqu'à ce que le Super Admin le désactive.
+ * Un même code gardien ou un code de compte (consultation) sont acceptés
+ * ici indifféremment — le rôle retourné dit ce que cet appareil peut faire. */
+export function AuthentificationBorneModal({
+  onSucces,
+  onClose,
+}: {
+  onSucces: (role: RoleAppareilBorne) => void;
+  onClose: () => void;
+}) {
   const [code, setCode] = useState("");
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -19,8 +28,8 @@ export function AuthentificationBorneModal({ onSucces, onClose }: { onSucces: ()
     setEnCours(true);
     setErreur(null);
     try {
-      await api.post("/api/bornes/authentifier", { code, appareilId: getAppareilId() });
-      onSucces();
+      const role = await api.post<RoleAppareilBorne>("/api/bornes/authentifier", { code, appareilId: getAppareilId() });
+      onSucces(role);
     } catch (err) {
       setErreur(err instanceof ApiError ? err.message : "Échec de l'authentification");
     } finally {
@@ -29,10 +38,10 @@ export function AuthentificationBorneModal({ onSucces, onClose }: { onSucces: ()
   }
 
   return (
-    <Modal titre="Autorisation requise" onClose={onClose} maxWidth="22rem">
+    <Modal titre="Authentification" onClose={onClose} maxWidth="22rem">
       <form onSubmit={soumettre}>
         <p style={{ margin: "0 0 1rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
-          Seule la personne autorisée à la porte peut changer l&apos;état d&apos;un coursier. Entrez le code d&apos;accès.
+          Entrez votre code d&apos;accès — celui du gardien ou celui de votre compte.
         </p>
         <div className="form-field">
           <label htmlFor="code-acces-borne">Code d&apos;accès</label>

@@ -2,17 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/apiClient";
-import { CoursierBorne, EtatJournee } from "@/lib/types";
+import { CoursierBorne, EtatJournee, RoleAppareilBorne } from "@/lib/types";
 import { CoursierCard } from "@/components/CoursierCard";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { RecapDetailsModal } from "@/components/RecapDetailsModal";
 import { Toast } from "@/components/Toast";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { IconArrowRight, IconBan, IconCheckCircle, IconChevronDown, IconDownload, IconLogIn, IconRefresh } from "@/components/icons";
+import { IconArrowRight, IconBan, IconCheckCircle, IconChevronDown, IconDownload, IconLogIn, IconRefresh, IconUsers } from "@/components/icons";
 import { Modal } from "@/components/Modal";
 import { NotificationBellBorne } from "@/components/NotificationBellBorne";
 import { AuthentificationBorneModal } from "@/components/AuthentificationBorneModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { HistoriqueCoursierModal } from "@/components/HistoriqueCoursierModal";
 import { getAppareilId } from "@/lib/appareilId";
 
 interface ReponseBorneCoursiers {
@@ -58,7 +59,9 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const [actionEnAttente, setActionEnAttente] = useState<(() => Promise<void>) | null>(null);
   const [etatJournee, setEtatJournee] = useState<EtatJournee | null>(null);
   const [journeeEnCours, setJourneeEnCours] = useState(false);
-  const [appareilAutorise, setAppareilAutorise] = useState(false);
+  const [roleAppareil, setRoleAppareil] = useState<RoleAppareilBorne | null>(null);
+  const [authModalOuvert, setAuthModalOuvert] = useState(false);
+  const [coursierHistorique, setCoursierHistorique] = useState<CoursierBorne | null>(null);
   const [confirmationJourneeOuverte, setConfirmationJourneeOuverte] = useState(false);
   const zoneDefilementRef = useRef<HTMLDivElement>(null);
 
@@ -115,17 +118,19 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     }
   }, [terminalId]);
 
-  // Démarrer/Fermer la journée ne doit s'afficher que pour un appareil déjà
-  // authentifié — contrairement aux actions individuelles, ce bouton ne se
-  // contente pas de demander le code à la volée.
-  const chargerAppareilAutorise = useCallback(async () => {
+  // Démarrer/Fermer la journée, et le comportement au clic sur un coursier,
+  // dépendent du rôle de CET appareil — contrairement aux actions gardien
+  // individuelles, ils ne se contentent pas de demander le code à la volée :
+  // un compte en consultation ne doit jamais voir l'option de changer un état.
+  const chargerRoleAppareil = useCallback(async () => {
     try {
-      const { autorise } = await api.get<{ autorise: boolean }>(
-        `/api/bornes/${terminalId}/appareil-autorise?appareilId=${encodeURIComponent(getAppareilId())}`
+      setRoleAppareil(
+        await api.get<RoleAppareilBorne | null>(
+          `/api/bornes/${terminalId}/appareil-autorise?appareilId=${encodeURIComponent(getAppareilId())}`
+        )
       );
-      setAppareilAutorise(autorise);
     } catch {
-      setAppareilAutorise(false);
+      setRoleAppareil(null);
     }
   }, [terminalId]);
 
@@ -138,10 +143,10 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   useEffect(() => {
     chargerTout();
     chargerEtatJournee();
-    chargerAppareilAutorise();
+    chargerRoleAppareil();
     const intervalle = setInterval(chargerTout, INTERVALLE_RAFRAICHISSEMENT_MS);
     return () => clearInterval(intervalle);
-  }, [chargerTout, chargerEtatJournee, chargerAppareilAutorise]);
+  }, [chargerTout, chargerEtatJournee, chargerRoleAppareil]);
 
   useEffect(() => {
     if (!toast) return;
@@ -166,6 +171,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     } catch (err) {
       if (err instanceof ApiError && err.code === "AUTHENTIFICATION_BORNE_REQUISE") {
         setActionEnAttente(() => action);
+        setAuthModalOuvert(true);
         return;
       }
       throw err;
@@ -228,6 +234,23 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       setErreur(err instanceof ApiError ? err.message : "Échec de l'opération");
     } finally {
       setJourneeEnCours(false);
+    }
+  }
+
+  function seConnecter() {
+    setActionEnAttente(null);
+    setAuthModalOuvert(true);
+  }
+
+  // Un compte en consultation ne voit jamais le choix Entrée/Sortie : le
+  // clic ouvre directement l'historique du jour, en lecture seule. Pour un
+  // gardien (ou un appareil pas encore authentifié), le flux habituel reste
+  // inchangé — le code est demandé à la volée si besoin, comme avant.
+  function surClicCoursier(coursier: CoursierBorne) {
+    if (roleAppareil?.role === "CONSULTATION") {
+      setCoursierHistorique(coursier);
+    } else {
+      setSelectionCoursier(coursier);
     }
   }
 
@@ -307,7 +330,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           >
             <IconRefresh size={17} />
           </button>
-          {etatJournee && appareilAutorise && (
+          {etatJournee && roleAppareil?.role === "GARDIEN" && (
             <button
               type="button"
               className="btn btn-secondary"
@@ -318,6 +341,33 @@ export default function BornePage({ params }: { params: { terminalId: string } }
             >
               {etatJournee.ouverte ? <IconCheckCircle size={15} /> : <IconArrowRight size={15} />}
               {journeeEnCours ? "…" : etatJournee.ouverte ? "Fermer" : "Démarrer"}
+            </button>
+          )}
+          {roleAppareil ? (
+            <span
+              className="connection-label"
+              title={roleAppareil.role === "GARDIEN" ? "Authentifié en tant que gardien" : `Connecté en consultation : ${roleAppareil.nom}`}
+              style={{
+                fontSize: "0.78rem",
+                color: "var(--color-text-muted)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <IconUsers size={14} /> {roleAppareil.role === "GARDIEN" ? "Gardien" : roleAppareil.nom}
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn-text"
+              onClick={seConnecter}
+              aria-label="Se connecter"
+              title="Se connecter avec un code d'accès"
+              style={{ display: "inline-flex", alignItems: "center", padding: "0.3rem" }}
+            >
+              <IconUsers size={17} />
             </button>
           )}
           <NotificationBellBorne terminalId={terminalId} notificationsActivesSurCeSite={notificationsBorneActives} />
@@ -358,7 +408,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
         )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "1rem", padding: "1rem" }}>
           {coursiersFiltres.map((c) => (
-            <CoursierCard key={c.id} coursier={c} onSelect={setSelectionCoursier} onZoom={setPhotoAgrandie} />
+            <CoursierCard key={c.id} coursier={c} onSelect={surClicCoursier} onZoom={setPhotoAgrandie} />
           ))}
         </div>
       </div>
@@ -395,15 +445,27 @@ export default function BornePage({ params }: { params: { terminalId: string } }
 
       {detailsOuvert && <RecapDetailsModal coursiers={coursiers} onClose={() => setDetailsOuvert(false)} />}
 
-      {actionEnAttente && (
+      {authModalOuvert && (
         <AuthentificationBorneModal
-          onClose={() => setActionEnAttente(null)}
-          onSucces={() => {
-            const action = actionEnAttente;
+          onClose={() => {
+            setAuthModalOuvert(false);
             setActionEnAttente(null);
-            setAppareilAutorise(true);
+          }}
+          onSucces={(role) => {
+            const action = actionEnAttente;
+            setAuthModalOuvert(false);
+            setActionEnAttente(null);
+            setRoleAppareil(role);
             action?.();
           }}
+        />
+      )}
+
+      {coursierHistorique && (
+        <HistoriqueCoursierModal
+          terminalId={terminalId}
+          coursier={coursierHistorique}
+          onClose={() => setCoursierHistorique(null)}
         />
       )}
 
