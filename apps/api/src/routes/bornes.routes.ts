@@ -8,6 +8,7 @@ import { calculerStatutsDetailleParLot } from "../services/statutService";
 import { annulerEvenement, creerEvenementBorne } from "../services/evenementService";
 import { listerEmployesBorne, pointerEmployeBorne } from "../services/presenceEmployeService";
 import { authentifierAppareilBorne, verifierAccesAppareilBorne } from "../services/codeBorneService";
+import { demarrerJournee, fermerJournee, obtenirJourneeSite } from "../services/journeeService";
 
 export const bornesRouter = Router();
 
@@ -68,6 +69,7 @@ bornesRouter.get("/:terminalId/coursiers", async (req, res) => {
       desactiveParNom: req.terminal!.desactiveParNom,
       desactiveLe: req.terminal!.desactiveLe,
       coursiers: [],
+      journee: null,
     });
     return;
   }
@@ -88,7 +90,22 @@ bornesRouter.get("/:terminalId/coursiers", async (req, res) => {
       depuis: detail.depuis,
     };
   });
-  res.json({ terminal: req.terminal, desactive: false, coursiers: avecStatut });
+  const journee = await obtenirJourneeSite(req.terminal!.siteId);
+  res.json({ terminal: req.terminal, desactive: false, coursiers: avecStatut, journee });
+});
+
+const actionJourneeSchema = z.object({ appareilId: z.string().optional() });
+
+bornesRouter.post("/:terminalId/journee/demarrer", validateBody(actionJourneeSchema), async (req, res) => {
+  if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
+  await verifierAccesAppareilBorne(req.body.appareilId, true);
+  res.status(201).json(await demarrerJournee(req.terminal!.siteId, req.terminal!.id));
+});
+
+bornesRouter.post("/:terminalId/journee/fermer", validateBody(actionJourneeSchema), async (req, res) => {
+  if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
+  await verifierAccesAppareilBorne(req.body.appareilId, true);
+  res.status(201).json(await fermerJournee(req.terminal!.siteId, req.terminal!.id));
 });
 
 const creerEvenementSchema = z.object({

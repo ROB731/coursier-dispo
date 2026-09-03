@@ -9,7 +9,7 @@ import { StatutBadge } from "@/components/StatutBadge";
 import { TopBar } from "@/components/TopBar";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { IconMenu } from "@/components/icons";
-import { formatDepuis } from "@/lib/dates";
+import { formatDepuis, formatLibelleDerniereActivite } from "@/lib/dates";
 
 export default function TableauDeBordPage() {
   const { utilisateur, chargement } = useUtilisateur();
@@ -79,6 +79,8 @@ export default function TableauDeBordPage() {
         <div className="container" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           {statuts.map((s) => {
             const journeeTerminee = s.statut !== "DISPONIBLE" && s.journeeTerminee;
+            const libelleDerniereActivite = formatLibelleDerniereActivite(s.statut, s.journeeTerminee);
+            const valeurDerniereActivite = s.depuis ? `${libelleDerniereActivite} ${formatDepuis(s.depuis)}` : `${libelleDerniereActivite} · heure inconnue`;
             return (
               <div
                 key={s.coursierId}
@@ -102,7 +104,9 @@ export default function TableauDeBordPage() {
                     {s.prenom} {s.nom}
                   </strong>
                   <span style={{ color: "var(--color-text-muted)", marginLeft: "0.5rem" }}>{s.code}</span>
-                  <small style={{ display: "block", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>{formatDepuis(s.depuis)}</small>
+                  <small style={{ display: "block", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+                    {s.depuis ? `${libelleDerniereActivite} ${formatDepuis(s.depuis)}` : `${libelleDerniereActivite} · heure inconnue`}
+                  </small>
                 </div>
                 <StatutBadge statut={s.statut} journeeTerminee={s.journeeTerminee} />
               </div>

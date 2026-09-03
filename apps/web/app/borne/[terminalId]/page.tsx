@@ -20,6 +20,7 @@ interface ReponseBorneCoursiers {
   desactiveParNom: string | null;
   desactiveLe: string | null;
   coursiers: CoursierBorne[];
+  journee: { etat: "OUVERTE" | "FERMEE"; demarreeLe: string; fermeeLe: string | null } | null;
 }
 
 interface EvenementInstallationPWA extends Event {
@@ -42,6 +43,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const { terminalId } = params;
   const [nomBorne, setNomBorne] = useState<string>("");
   const [coursiers, setCoursiers] = useState<CoursierBorne[]>([]);
+  const [journee, setJournee] = useState<ReponseBorneCoursiers["journee"]>(null);
   const [recherche, setRecherche] = useState("");
   const [selectionCoursier, setSelectionCoursier] = useState<CoursierBorne | null>(null);
   const [photoAgrandie, setPhotoAgrandie] = useState<CoursierBorne | null>(null);
@@ -94,6 +96,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       const data = await api.get<ReponseBorneCoursiers>(`/api/bornes/${terminalId}/coursiers`);
       setNomBorne(data.terminal.nom);
       setCoursiers(data.coursiers);
+      setJournee(data.journee);
       setDesactivation(data.desactive ? { parNom: data.desactiveParNom, le: data.desactiveLe } : null);
       setErreur(null);
       setDernierRafraichissement(new Date());
@@ -185,6 +188,22 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     }
   }
 
+  async function basculerJournee() {
+    setEnCours(true);
+    try {
+      await executerOuDemanderCode(async () => {
+        const action = journee?.etat === "OUVERTE" ? "fermer" : "demarrer";
+        await api.post(`/api/bornes/${terminalId}/journee/${action}`, { appareilId: getAppareilId() });
+        setToast({ message: action === "demarrer" ? "Journée démarrée" : "Journée fermée" });
+        await chargerTout();
+      });
+    } catch (err) {
+      setErreur(err instanceof ApiError ? err.message : "Échec de la mise à jour de la journée");
+    } finally {
+      setEnCours(false);
+    }
+  }
+
   if (desactivation) {
     return (
       <div className="app-shell">
@@ -251,6 +270,15 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <button
+            type="button"
+            className={journee?.etat === "OUVERTE" ? "btn btn-secondary" : "btn btn-primary"}
+            onClick={basculerJournee}
+            disabled={enCours || journee?.etat === "FERMEE"}
+            title={journee?.etat === "OUVERTE" ? "Faire rentrer tous les coursiers" : "Faire sortir tous les coursiers"}
+          >
+            {journee?.etat === "OUVERTE" ? "Fermer la journée" : journee?.etat === "FERMEE" ? "Journée fermée" : "Démarrer la journée"}
+          </button>
           <button
             type="button"
             className="btn-text"
