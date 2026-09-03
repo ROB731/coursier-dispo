@@ -154,16 +154,20 @@ model JournalActivite {
 // ---------- Sites & Bornes ----------
 
 model Site {
-  id               String     @id @default(uuid())
-  entreprise       Entreprise @relation(fields: [entrepriseId], references: [id], onDelete: Restrict)
-  entrepriseId     String
-  nom              String
-  adresse          String?
-  ville            String?
-  estSitePrincipal Boolean    @default(false)
-  actif            Boolean    @default(true)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  id                   String     @id @default(uuid())
+  entreprise           Entreprise @relation(fields: [entrepriseId], references: [id], onDelete: Restrict)
+  entrepriseId         String
+  nom                  String
+  adresse              String?
+  ville                String?
+  estSitePrincipal     Boolean    @default(false)
+  actif                Boolean    @default(true)
+  // Journée ouverte/fermée manuellement depuis la borne (bouton
+  // Démarrer/Fermer la journée) — non-null = ouverte depuis cette heure,
+  // null = fermée. Voir journeeService.
+  journeeOuverteDepuis DateTime?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
   coursierSites         CoursierSite[]
   terminaux             Terminal[]

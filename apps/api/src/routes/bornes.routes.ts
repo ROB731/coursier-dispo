@@ -8,6 +8,7 @@ import { calculerStatutsDetailleParLot } from "../services/statutService";
 import { annulerEvenement, creerEvenementBorne } from "../services/evenementService";
 import { listerEmployesBorne, pointerEmployeBorne } from "../services/presenceEmployeService";
 import { authentifierAppareilBorne, verifierAccesAppareilBorne } from "../services/codeBorneService";
+import { demarrerJourneeSite, fermerJourneeSite, getEtatJourneeSite } from "../services/journeeService";
 
 export const bornesRouter = Router();
 
@@ -119,6 +120,31 @@ bornesRouter.post("/:terminalId/evenements/:id/annuler", validateBody(annulerEve
     terminalId: req.terminal!.id,
   });
   res.status(201).json(annulation);
+});
+
+// ---------- Démarrer / fermer la journée (action groupée sur tout le site) ----------
+// Démarrer bascule d'un coup tous les coursiers disponibles en Sortie
+// (l'équipe part en tournée) ; Fermer clôture immédiatement ceux encore
+// disponibles (équivalent manuel du job de clôture automatique). Les deux
+// exigent un appareil déjà authentifié, comme les actions individuelles.
+
+bornesRouter.get("/:terminalId/journee", async (req, res) => {
+  if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
+  res.json(await getEtatJourneeSite(req.terminal!.siteId));
+});
+
+const journeeActionSchema = z.object({ appareilId: z.string().optional() });
+
+bornesRouter.post("/:terminalId/journee/demarrer", validateBody(journeeActionSchema), async (req, res) => {
+  if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
+  await verifierAccesAppareilBorne(req.body.appareilId);
+  res.status(201).json(await demarrerJourneeSite(req.terminal!.siteId, req.terminal!.id));
+});
+
+bornesRouter.post("/:terminalId/journee/fermer", validateBody(journeeActionSchema), async (req, res) => {
+  if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
+  await verifierAccesAppareilBorne(req.body.appareilId);
+  res.status(201).json(await fermerJourneeSite(req.terminal!.siteId));
 });
 
 // ---------- Employés (onglet séparé sur l'écran de la borne) ----------
