@@ -89,13 +89,18 @@ export async function authentifierAppareilBorne(code: string, appareilId: string
   throw new UnauthorizedError("Code incorrect");
 }
 
-/** Garde-fou appelé avant toute modification d'état d'un coursier à la
- * borne. Ne fait rien si aucun code actif n'existe (fonctionnalité
- * désactivée) — sinon exige que l'appareil appelant soit lié à l'un d'eux. */
-export async function verifierAccesAppareilBorne(appareilId: string | undefined) {
+/** true si aucun code actif n'existe (fonctionnalité désactivée, tout le
+ * monde autorisé par défaut) ou si cet appareil est lié à l'un des codes
+ * actifs. Source unique de vérité, réutilisée pour le garde-fou des actions
+ * individuelles et pour savoir si une fonctionnalité doit s'afficher côté
+ * borne (ex. le bouton Démarrer/Fermer la journée). */
+export async function estAppareilAutorise(appareilId: string | undefined): Promise<boolean> {
   const codesActifs = await prisma.codeAccesBorne.findMany({ where: { actif: true } });
-  if (codesActifs.length === 0) return;
+  if (codesActifs.length === 0) return true;
+  return Boolean(appareilId && codesActifs.some((c) => c.appareilId === appareilId));
+}
 
-  const autorise = appareilId && codesActifs.some((c) => c.appareilId === appareilId);
-  if (!autorise) throw new AuthentificationBorneRequiseError();
+/** Garde-fou appelé avant toute modification d'état d'un coursier à la borne. */
+export async function verifierAccesAppareilBorne(appareilId: string | undefined) {
+  if (!(await estAppareilAutorise(appareilId))) throw new AuthentificationBorneRequiseError();
 }

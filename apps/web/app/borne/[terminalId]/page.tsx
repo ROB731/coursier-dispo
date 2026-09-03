@@ -12,6 +12,7 @@ import { IconArrowRight, IconBan, IconCheckCircle, IconChevronDown, IconDownload
 import { Modal } from "@/components/Modal";
 import { NotificationBellBorne } from "@/components/NotificationBellBorne";
 import { AuthentificationBorneModal } from "@/components/AuthentificationBorneModal";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { getAppareilId } from "@/lib/appareilId";
 
 interface ReponseBorneCoursiers {
@@ -57,6 +58,8 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const [actionEnAttente, setActionEnAttente] = useState<(() => Promise<void>) | null>(null);
   const [etatJournee, setEtatJournee] = useState<EtatJournee | null>(null);
   const [journeeEnCours, setJourneeEnCours] = useState(false);
+  const [appareilAutorise, setAppareilAutorise] = useState(false);
+  const [confirmationJourneeOuverte, setConfirmationJourneeOuverte] = useState(false);
   const zoneDefilementRef = useRef<HTMLDivElement>(null);
 
   function surDefilement() {
@@ -112,6 +115,20 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     }
   }, [terminalId]);
 
+  // Démarrer/Fermer la journée ne doit s'afficher que pour un appareil déjà
+  // authentifié — contrairement aux actions individuelles, ce bouton ne se
+  // contente pas de demander le code à la volée.
+  const chargerAppareilAutorise = useCallback(async () => {
+    try {
+      const { autorise } = await api.get<{ autorise: boolean }>(
+        `/api/bornes/${terminalId}/appareil-autorise?appareilId=${encodeURIComponent(getAppareilId())}`
+      );
+      setAppareilAutorise(autorise);
+    } catch {
+      setAppareilAutorise(false);
+    }
+  }, [terminalId]);
+
   useEffect(() => {
     api.get<{ notificationsBorneActives?: boolean }>("/api/configuration/accueil")
       .then((configuration) => setNotificationsBorneActives(Boolean(configuration.notificationsBorneActives)))
@@ -121,9 +138,10 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   useEffect(() => {
     chargerTout();
     chargerEtatJournee();
+    chargerAppareilAutorise();
     const intervalle = setInterval(chargerTout, INTERVALLE_RAFRAICHISSEMENT_MS);
     return () => clearInterval(intervalle);
-  }, [chargerTout, chargerEtatJournee]);
+  }, [chargerTout, chargerEtatJournee, chargerAppareilAutorise]);
 
   useEffect(() => {
     if (!toast) return;
@@ -196,13 +214,9 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     }
   }
 
-  async function basculerJournee() {
+  async function confirmerBasculerJournee() {
     const ouverte = Boolean(etatJournee?.ouverte);
-    const confirmation = ouverte
-      ? "Fermer la journée ? Tous les coursiers encore disponibles seront clôturés."
-      : "Démarrer la journée ? Tous les coursiers disponibles seront basculés en Sortie.";
-    if (!window.confirm(confirmation)) return;
-
+    setConfirmationJourneeOuverte(false);
     setJourneeEnCours(true);
     try {
       await executerOuDemanderCode(async () => {
@@ -293,16 +307,17 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           >
             <IconRefresh size={17} />
           </button>
-          {etatJournee && (
+          {etatJournee && appareilAutorise && (
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={basculerJournee}
+              onClick={() => setConfirmationJourneeOuverte(true)}
               disabled={journeeEnCours}
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", whiteSpace: "nowrap" }}
+              title={etatJournee.ouverte ? "Fermer la journée" : "Démarrer la journée"}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", whiteSpace: "nowrap" }}
             >
               {etatJournee.ouverte ? <IconCheckCircle size={15} /> : <IconArrowRight size={15} />}
-              {journeeEnCours ? "Enregistrement…" : etatJournee.ouverte ? "Fermer la journée" : "Démarrer la journée"}
+              {journeeEnCours ? "…" : etatJournee.ouverte ? "Fermer" : "Démarrer"}
             </button>
           )}
           <NotificationBellBorne terminalId={terminalId} notificationsActivesSurCeSite={notificationsBorneActives} />
@@ -386,8 +401,24 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           onSucces={() => {
             const action = actionEnAttente;
             setActionEnAttente(null);
+            setAppareilAutorise(true);
             action?.();
           }}
+        />
+      )}
+
+      {confirmationJourneeOuverte && (
+        <ConfirmModal
+          titre={etatJournee?.ouverte ? "Fermer la journée" : "Démarrer la journée"}
+          message={
+            etatJournee?.ouverte
+              ? "Tous les coursiers encore disponibles seront clôturés."
+              : "Tous les coursiers disponibles seront basculés en Sortie."
+          }
+          libelleConfirmer={etatJournee?.ouverte ? "Fermer" : "Démarrer"}
+          enCours={journeeEnCours}
+          onConfirm={confirmerBasculerJournee}
+          onClose={() => setConfirmationJourneeOuverte(false)}
         />
       )}
     </div>
