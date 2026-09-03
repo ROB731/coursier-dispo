@@ -7,8 +7,9 @@ import { listerCoursiers } from "../services/coursierService";
 import { calculerStatutsDetailleParLot } from "../services/statutService";
 import { annulerEvenement, creerEvenementBorne } from "../services/evenementService";
 import { listerEmployesBorne, pointerEmployeBorne } from "../services/presenceEmployeService";
-import { authentifierAppareilBorne, estAppareilAutorise, verifierAccesAppareilBorne } from "../services/codeBorneService";
+import { authentifierAppareilBorne, getRoleAppareilBorne, verifierAccesGardienBorne } from "../services/codeBorneService";
 import { demarrerJourneeSite, fermerJourneeSite, getEtatJourneeSite } from "../services/journeeService";
+import { getHistoriqueCoursierJourBorne } from "../services/evenementService";
 
 export const bornesRouter = Router();
 
@@ -23,8 +24,7 @@ const authentifierSchema = z.object({
 });
 
 bornesRouter.post("/authentifier", validateBody(authentifierSchema), async (req, res) => {
-  await authentifierAppareilBorne(req.body.code, req.body.appareilId);
-  res.status(204).send();
+  res.json(await authentifierAppareilBorne(req.body.code, req.body.appareilId));
 });
 
 declare module "express-serve-static-core" {
@@ -100,7 +100,7 @@ const creerEvenementSchema = z.object({
 
 bornesRouter.post("/:terminalId/evenements", validateBody(creerEvenementSchema), async (req, res) => {
   if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
-  await verifierAccesAppareilBorne(req.body.appareilId);
+  await verifierAccesGardienBorne(req.body.appareilId);
   const evenement = await creerEvenementBorne({
     coursierId: req.body.coursierId,
     type: req.body.type,
@@ -113,7 +113,7 @@ const annulerEvenementSchema = z.object({ appareilId: z.string().optional() });
 
 bornesRouter.post("/:terminalId/evenements/:id/annuler", validateBody(annulerEvenementSchema), async (req, res) => {
   if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
-  await verifierAccesAppareilBorne(req.body.appareilId);
+  await verifierAccesGardienBorne(req.body.appareilId);
   const annulation = await annulerEvenement({
     evenementId: req.params.id,
     source: "BORNE",
@@ -133,26 +133,35 @@ bornesRouter.get("/:terminalId/journee", async (req, res) => {
   res.json(await getEtatJourneeSite(req.terminal!.siteId));
 });
 
-// Permet au frontend de savoir si CET appareil est déjà authentifié, pour
-// n'afficher le bouton Démarrer/Fermer la journée que dans ce cas — sans
-// avoir à tenter l'action pour le découvrir.
+// Permet au frontend de savoir si CET appareil est déjà authentifié et avec
+// quel rôle (gardien = actions, consultation = lecture seule), pour adapter
+// l'interface sans avoir à tenter une action pour le découvrir.
 bornesRouter.get("/:terminalId/appareil-autorise", async (req, res) => {
   if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
   const appareilId = typeof req.query.appareilId === "string" ? req.query.appareilId : undefined;
-  res.json({ autorise: await estAppareilAutorise(appareilId) });
+  res.json(await getRoleAppareilBorne(appareilId));
+});
+
+// Historique du jour d'un coursier, pour le modal de consultation (clic sur
+// un coursier quand l'appareil est authentifié en CONSULTATION) — accessible
+// à tout appareil authentifié, gardien compris, aucune action associée.
+bornesRouter.get("/:terminalId/coursiers/:coursierId/historique", async (req, res) => {
+  if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
+  const date = typeof req.query.date === "string" ? req.query.date : undefined;
+  res.json(await getHistoriqueCoursierJourBorne(req.params.coursierId, req.terminal!.siteId, date));
 });
 
 const journeeActionSchema = z.object({ appareilId: z.string().optional() });
 
 bornesRouter.post("/:terminalId/journee/demarrer", validateBody(journeeActionSchema), async (req, res) => {
   if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
-  await verifierAccesAppareilBorne(req.body.appareilId);
+  await verifierAccesGardienBorne(req.body.appareilId);
   res.status(201).json(await demarrerJourneeSite(req.terminal!.siteId, req.terminal!.id));
 });
 
 bornesRouter.post("/:terminalId/journee/fermer", validateBody(journeeActionSchema), async (req, res) => {
   if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
-  await verifierAccesAppareilBorne(req.body.appareilId);
+  await verifierAccesGardienBorne(req.body.appareilId);
   res.status(201).json(await fermerJourneeSite(req.terminal!.siteId));
 });
 

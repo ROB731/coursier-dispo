@@ -127,6 +127,7 @@ model Utilisateur {
   journalActivite       JournalActivite[]
   terminauxDesactives   Terminal[]         @relation("TerminalDesactivePar")
   presencesEnregistrees PresenceEmploye[]  @relation("PresenceEnregistreePar")
+  codeAccesBorne        CodeAccesBorne?
 
   @@index([role])
   @@index([entrepriseId])
@@ -376,15 +377,31 @@ model ConfigurationPlateforme {
 // Admin. Haché, jamais stocké en clair. Chaque code se lie au premier
 // appareil qui s'authentifie avec succès (appareilId) ; un autre appareil
 // est refusé tant que le Super Admin ne l'a pas délié.
+enum RoleCodeBorne {
+  // Accès complet : change l'état des coursiers, Démarrer/Fermer la journée.
+  GARDIEN
+  // Lecture seule : consulte l'historique détaillé d'un coursier, aucune
+  // action de modification. Toujours lié à un compte existant.
+  CONSULTATION
+}
+
 model CodeAccesBorne {
-  id         String    @id @default(uuid())
-  nom        String
-  codeHash   String
-  actif      Boolean   @default(true)
-  appareilId String?
-  lieLe      DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id            String        @id @default(uuid())
+  nom           String
+  role          RoleCodeBorne @default(GARDIEN)
+  codeHash      String
+  // Renseigné uniquement pour role = CONSULTATION : le titulaire du compte
+  // doit pouvoir revoir son propre code depuis son profil (authentification
+  // permanente, pas de reconnexion à chaque fois) — contrairement au code
+  // GARDIEN, affiché une seule fois à sa génération puis jamais retrouvable.
+  code          String?
+  utilisateur   Utilisateur?  @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  utilisateurId String?       @unique
+  actif         Boolean       @default(true)
+  appareilId    String?
+  lieLe         DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@index([actif])
 }

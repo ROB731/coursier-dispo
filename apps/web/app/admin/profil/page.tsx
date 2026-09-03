@@ -8,6 +8,13 @@ import { Utilisateur } from "@/lib/types";
 import { LIBELLE_ROLE } from "@/lib/roles";
 import { ecrireAfficherStatsGestion, lireAfficherStatsGestion } from "@/lib/preferencesTableauDeBord";
 
+interface CodeBornePersonnel {
+  code: string | null;
+  actif: boolean;
+  appareilLie: boolean;
+  lieLe: string | null;
+}
+
 export default function MonProfilPage() {
   const { showToast } = useToast();
   const { utilisateur, chargement } = useUtilisateur();
@@ -16,9 +23,11 @@ export default function MonProfilPage() {
   const [enCoursMdp, setEnCoursMdp] = useState(false);
   const [erreurMdp, setErreurMdp] = useState<string | null>(null);
   const [afficherStats, setAfficherStats] = useState(false);
+  const [codeBorne, setCodeBorne] = useState<CodeBornePersonnel | null | undefined>(undefined);
 
   useEffect(() => {
     setAfficherStats(lireAfficherStatsGestion());
+    api.get<CodeBornePersonnel | null>("/api/auth/me/code-borne").then(setCodeBorne).catch(() => setCodeBorne(null));
   }, []);
 
   async function enregistrerInfos(e: FormEvent<HTMLFormElement>) {
@@ -142,6 +151,51 @@ export default function MonProfilPage() {
             <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginBottom: 0 }}>
               Masqués par défaut pour garder l'essentiel visible en un coup d'œil : qui est disponible maintenant.
             </p>
+          </div>
+        )}
+
+        {codeBorne !== undefined && (
+          <div className="card" style={{ padding: "1.25rem", flex: "1 1 20rem" }}>
+            <h2 style={{ marginTop: 0 }}>Code d&apos;accès borne</h2>
+            {codeBorne === null ? (
+              <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginBottom: 0 }}>
+                Vous n&apos;avez pas encore de code — demandez au Super Administrateur de vous en générer un si vous devez
+                consulter l&apos;historique des coursiers directement depuis une borne.
+              </p>
+            ) : (
+              <>
+                <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", margin: "0 0 0.75rem" }}>
+                  Donne un accès en lecture seule à l&apos;historique des coursiers depuis une borne — vous ne pouvez pas
+                  changer leur état avec ce code.
+                </p>
+                <div
+                  style={{
+                    fontSize: "1.4rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.3em",
+                    textAlign: "center",
+                    padding: "0.5rem",
+                    marginBottom: "0.6rem",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--color-primary-soft)",
+                    color: "var(--color-primary)",
+                  }}
+                >
+                  {codeBorne.code}
+                </div>
+                <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginBottom: 0 }}>
+                  {codeBorne.actif ? "Actif" : "Désactivé par le Super Administrateur"}
+                  {codeBorne.appareilLie && (
+                    <>
+                      {" "}
+                      · lié à un appareil
+                      {codeBorne.lieLe &&
+                        ` depuis le ${new Date(codeBorne.lieLe).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}`}
+                    </>
+                  )}
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>

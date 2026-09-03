@@ -11,7 +11,8 @@ import { getConfigurationAccueil, modifierConfigurationAccueil } from "../servic
 import {
   activerCodeBorne,
   delierAppareilCodeBorne,
-  genererCodeBorne,
+  genererCodeConsultation,
+  genererCodeGardien,
   listerCodesBorne,
   supprimerCodeBorne,
 } from "../services/codeBorneService";
@@ -75,15 +76,27 @@ parametresRouter.get("/codes-borne", requireRole("SUPER_ADMIN"), async (_req, re
   res.json(await listerCodesBorne());
 });
 
-const creerCodeBorneSchema = z.object({ nom: z.string().trim().min(1, "Un nom est requis") });
+const creerCodeGardienSchema = z.object({ nom: z.string().trim().min(1, "Un nom est requis") });
 
 parametresRouter.post(
   "/codes-borne",
   requireRole("SUPER_ADMIN"),
-  validateBody(creerCodeBorneSchema),
-  journaliser("Création d'un code d'accès borne", (req) => req.body?.nom),
+  validateBody(creerCodeGardienSchema),
+  journaliser("Création d'un code d'accès borne (gardien)", (req) => req.body?.nom),
   async (req, res) => {
-    res.status(201).json(await genererCodeBorne(req.body.nom));
+    res.status(201).json(await genererCodeGardien(req.body.nom));
+  }
+);
+
+const creerCodeConsultationSchema = z.object({ utilisateurId: z.string().uuid() });
+
+parametresRouter.post(
+  "/codes-borne/consultation",
+  requireRole("SUPER_ADMIN"),
+  validateBody(creerCodeConsultationSchema),
+  journaliser("Création d'un code d'accès borne (consultation)", (req) => req.body?.utilisateurId),
+  async (req, res) => {
+    res.status(201).json(await genererCodeConsultation(req.body.utilisateurId));
   }
 );
 
