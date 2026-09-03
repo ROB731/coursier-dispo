@@ -244,14 +244,21 @@ export default function BornePage({ params }: { params: { terminalId: string } }
 
   // Un compte en consultation ne voit jamais le choix Entrée/Sortie : le
   // clic ouvre directement l'historique du jour, en lecture seule. Pour un
-  // gardien (ou un appareil pas encore authentifié), le flux habituel reste
-  // inchangé — le code est demandé à la volée si besoin, comme avant.
+  // gardien, un accès complet (ADMIN) ou un appareil pas encore authentifié,
+  // le flux habituel reste inchangé — le code est demandé à la volée si
+  // besoin, comme avant. Un accès complet peut aussi ouvrir l'historique
+  // directement via le bouton dédié (voirHistorique), sans passer par ce
+  // premier modal.
   function surClicCoursier(coursier: CoursierBorne) {
     if (roleAppareil?.role === "CONSULTATION") {
       setCoursierHistorique(coursier);
     } else {
       setSelectionCoursier(coursier);
     }
+  }
+
+  function voirHistorique(coursier: CoursierBorne) {
+    setCoursierHistorique(coursier);
   }
 
   if (desactivation) {
@@ -330,7 +337,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           >
             <IconRefresh size={17} />
           </button>
-          {etatJournee && roleAppareil?.role === "GARDIEN" && (
+          {etatJournee && (roleAppareil?.role === "GARDIEN" || roleAppareil?.role === "ADMIN") && (
             <button
               type="button"
               className="btn btn-secondary"
@@ -346,17 +353,25 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           {roleAppareil ? (
             <span
               className="connection-label"
-              title={roleAppareil.role === "GARDIEN" ? "Authentifié en tant que gardien" : `Connecté en consultation : ${roleAppareil.nom}`}
+              title={
+                roleAppareil.role === "GARDIEN"
+                  ? "Authentifié en tant que gardien"
+                  : roleAppareil.role === "ADMIN"
+                    ? `Accès complet (gardien + consultation) : ${roleAppareil.nom}`
+                    : `Connecté en consultation : ${roleAppareil.nom}`
+              }
               style={{
                 fontSize: "0.78rem",
-                color: "var(--color-text-muted)",
+                color: roleAppareil.role === "ADMIN" ? "var(--color-accent)" : "var(--color-text-muted)",
+                fontWeight: roleAppareil.role === "ADMIN" ? 700 : 400,
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "0.3rem",
                 whiteSpace: "nowrap",
               }}
             >
-              <IconUsers size={14} /> {roleAppareil.role === "GARDIEN" ? "Gardien" : roleAppareil.nom}
+              <IconUsers size={14} />{" "}
+              {roleAppareil.role === "GARDIEN" ? "Gardien" : roleAppareil.role === "ADMIN" ? `${roleAppareil.nom} · Accès complet` : roleAppareil.nom}
             </span>
           ) : (
             <button
@@ -408,7 +423,13 @@ export default function BornePage({ params }: { params: { terminalId: string } }
         )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "1rem", padding: "1rem" }}>
           {coursiersFiltres.map((c) => (
-            <CoursierCard key={c.id} coursier={c} onSelect={surClicCoursier} onZoom={setPhotoAgrandie} />
+            <CoursierCard
+              key={c.id}
+              coursier={c}
+              onSelect={surClicCoursier}
+              onZoom={setPhotoAgrandie}
+              onHistorique={roleAppareil?.role === "ADMIN" ? voirHistorique : undefined}
+            />
           ))}
         </div>
       </div>
@@ -450,6 +471,14 @@ export default function BornePage({ params }: { params: { terminalId: string } }
             setDetailsOuvert(false);
             surClicCoursier(c);
           }}
+          onHistorique={
+            roleAppareil?.role === "ADMIN"
+              ? (c) => {
+                  setDetailsOuvert(false);
+                  voirHistorique(c);
+                }
+              : undefined
+          }
           onClose={() => setDetailsOuvert(false)}
         />
       )}

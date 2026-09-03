@@ -383,6 +383,11 @@ enum RoleCodeBorne {
   // Lecture seule : consulte l'historique détaillé d'un coursier, aucune
   // action de modification. Toujours lié à un compte existant.
   CONSULTATION
+  // Accès complet + lecture seule cumulés (GARDIEN + CONSULTATION) : attribué
+  // automatiquement quand le code généré est lié à un compte SUPER_ADMIN,
+  // qui doit pouvoir aussi bien agir que consulter l'historique depuis la
+  // borne. Toujours lié à un compte existant, comme CONSULTATION.
+  ADMIN
 }
 
 model CodeAccesBorne {

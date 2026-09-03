@@ -43,24 +43,31 @@ export async function genererCodeGardien(nom: string) {
   return { id: cree.id, nom: cree.nom, code };
 }
 
-/** Code CONSULTATION : lié à un compte existant, un seul par compte
- * (regénérer remplace le précédent). Contrairement au gardien, le code en
- * clair est aussi conservé (colonne `code`) pour que le titulaire puisse le
- * revoir depuis son profil sans repasser par le Super Admin. */
+/** Code CONSULTATION (ou ADMIN) : lié à un compte existant, un seul par
+ * compte (regénérer remplace le précédent). Contrairement au gardien, le
+ * code en clair est aussi conservé (colonne `code`) pour que le titulaire
+ * puisse le revoir depuis son profil sans repasser par le Super Admin.
+ *
+ * Le rôle est déduit automatiquement du compte, pas choisi par le Super
+ * Admin : un compte SUPER_ADMIN reçoit un accès complet (ADMIN = GARDIEN +
+ * CONSULTATION cumulés), tous les autres reçoivent un accès lecture seule
+ * (CONSULTATION). Recalculé à chaque régénération, au cas où le rôle du
+ * compte aurait changé depuis. */
 export async function genererCodeConsultation(utilisateurId: string) {
   const utilisateur = await prisma.utilisateur.findUnique({ where: { id: utilisateurId } });
   if (!utilisateur) throw new NotFoundError("Compte introuvable");
 
+  const role = utilisateur.role === "SUPER_ADMIN" ? "ADMIN" : "CONSULTATION";
   const code = genererCode();
   const codeHash = await bcrypt.hash(code, SALT_ROUNDS);
 
   const resultat = await prisma.codeAccesBorne.upsert({
     where: { utilisateurId },
-    create: { nom: utilisateur.nomComplet, role: "CONSULTATION", codeHash, code, utilisateurId },
-    update: { nom: utilisateur.nomComplet, codeHash, code, actif: true, appareilId: null, lieLe: null },
+    create: { nom: utilisateur.nomComplet, role, codeHash, code, utilisateurId },
+    update: { nom: utilisateur.nomComplet, role, codeHash, code, actif: true, appareilId: null, lieLe: null },
   });
 
-  return { id: resultat.id, nom: resultat.nom, code };
+  return { id: resultat.id, nom: resultat.nom, role: resultat.role, code };
 }
 
 async function trouverCode(id: string) {
@@ -89,13 +96,14 @@ export async function supprimerCodeBorne(id: string) {
   return listerCodesBorne();
 }
 
-/** Le titulaire d'un compte consulte son propre code CONSULTATION depuis
- * son profil — jamais exposé à personne d'autre que lui (et le Super Admin
- * au moment de la génération). */
+/** Le titulaire d'un compte consulte son propre code (CONSULTATION ou
+ * ADMIN) depuis son profil — jamais exposé à personne d'autre que lui (et le
+ * Super Admin au moment de la génération). Le rôle est renvoyé pour que le
+ * profil affiche le bon niveau d'accès (lecture seule ou complet). */
 export async function getCodePersonnel(utilisateurId: string) {
   const code = await prisma.codeAccesBorne.findUnique({ where: { utilisateurId } });
-  if (!code || code.role !== "CONSULTATION") return null;
-  return { code: code.code, actif: code.actif, appareilLie: Boolean(code.appareilId), lieLe: code.lieLe };
+  if (!code || (code.role !== "CONSULTATION" && code.role !== "ADMIN")) return null;
+  return { code: code.code, role: code.role, actif: code.actif, appareilLie: Boolean(code.appareilId), lieLe: code.lieLe };
 }
 
 /** Appelée par la borne (page publique, pas de compte) quand le modal
@@ -126,14 +134,18 @@ export async function authentifierAppareilBorne(code: string, appareilId: string
   throw new UnauthorizedError("Code incorrect");
 }
 
-/** Rôle actuel de cet appareil (ou null si non authentifié) — GARDIEN
- * l'emporte si l'appareil est lié à plusieurs codes actifs à la fois. */
+/** Rôle actuel de cet appareil (ou null si non authentifié) — le plus
+ * complet l'emporte si l'appareil est lié à plusieurs codes actifs à la
+ * fois : ADMIN (les deux) > GARDIEN (actions) > CONSULTATION (lecture). */
 export async function getRoleAppareilBorne(appareilId: string | undefined) {
   if (!appareilId) return null;
   const codes = await prisma.codeAccesBorne.findMany({ where: { actif: true, appareilId } });
   if (codes.length === 0) return null;
+  const admin = codes.find((c) => c.role === "ADMIN");
+  if (admin) return { role: "ADMIN" as const, nom: admin.nom };
   const gardien = codes.find((c) => c.role === "GARDIEN");
-  return gardien ? { role: "GARDIEN" as const, nom: gardien.nom } : { role: "CONSULTATION" as const, nom: codes[0].nom };
+  if (gardien) return { role: "GARDIEN" as const, nom: gardien.nom };
+  return { role: "CONSULTATION" as const, nom: codes[0].nom };
 }
 
 /** true si aucun code actif n'existe (fonctionnalité désactivée, tout le
@@ -146,15 +158,16 @@ export async function estAppareilAutorise(appareilId: string | undefined): Promi
 }
 
 /** Garde-fou pour les actions qui modifient l'état d'un coursier (Entrée/
- * Sortie/annulation, Démarrer/Fermer la journée) — exige spécifiquement le
- * rôle GARDIEN : un appareil authentifié en CONSULTATION est bloqué ici. */
+ * Sortie/annulation, Démarrer/Fermer la journée) — exige un rôle capable
+ * d'agir (GARDIEN ou ADMIN) : un appareil authentifié en CONSULTATION seule
+ * est bloqué ici. */
 export async function verifierAccesGardienBorne(appareilId: string | undefined) {
   const codesActifs = await prisma.codeAccesBorne.findMany({ where: { actif: true } });
   if (codesActifs.length === 0) return;
 
   const role = await getRoleAppareilBorne(appareilId);
   if (!role) throw new AuthentificationBorneRequiseError();
-  if (role.role !== "GARDIEN") {
+  if (role.role !== "GARDIEN" && role.role !== "ADMIN") {
     throw new ForbiddenError("Ce compte n'est pas autorisé à modifier l'état des coursiers");
   }
 }

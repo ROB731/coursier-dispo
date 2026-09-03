@@ -199,6 +199,15 @@ export function IconRefresh(props: IconProps) {
   );
 }
 
+export function IconClock(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="12 7 12 12 16 14" />
+    </svg>
+  );
+}
+
 export function IconBell(props: IconProps) {
   return (
     <svg {...base(props)}>

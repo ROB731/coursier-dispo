@@ -35,7 +35,7 @@ export interface EtatJournee {
   depuis: string | null;
 }
 
-export type RoleCodeBorne = "GARDIEN" | "CONSULTATION";
+export type RoleCodeBorne = "GARDIEN" | "CONSULTATION" | "ADMIN";
 
 export interface RoleAppareilBorne {
   role: RoleCodeBorne;
