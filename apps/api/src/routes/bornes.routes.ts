@@ -7,7 +7,7 @@ import { listerCoursiers } from "../services/coursierService";
 import { calculerStatutsDetailleParLot } from "../services/statutService";
 import { annulerEvenement, creerEvenementBorne } from "../services/evenementService";
 import { listerEmployesBorne, pointerEmployeBorne } from "../services/presenceEmployeService";
-import { authentifierAppareilBorne, verifierAccesAppareilBorne } from "../services/codeBorneService";
+import { authentifierAppareilBorne, estAppareilAutorise, verifierAccesAppareilBorne } from "../services/codeBorneService";
 import { demarrerJourneeSite, fermerJourneeSite, getEtatJourneeSite } from "../services/journeeService";
 
 export const bornesRouter = Router();
@@ -131,6 +131,15 @@ bornesRouter.post("/:terminalId/evenements/:id/annuler", validateBody(annulerEve
 bornesRouter.get("/:terminalId/journee", async (req, res) => {
   if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
   res.json(await getEtatJourneeSite(req.terminal!.siteId));
+});
+
+// Permet au frontend de savoir si CET appareil est déjà authentifié, pour
+// n'afficher le bouton Démarrer/Fermer la journée que dans ce cas — sans
+// avoir à tenter l'action pour le découvrir.
+bornesRouter.get("/:terminalId/appareil-autorise", async (req, res) => {
+  if (!req.terminal!.actif) throw new ForbiddenError("Ce point a été désactivé");
+  const appareilId = typeof req.query.appareilId === "string" ? req.query.appareilId : undefined;
+  res.json({ autorise: await estAppareilAutorise(appareilId) });
 });
 
 const journeeActionSchema = z.object({ appareilId: z.string().optional() });
