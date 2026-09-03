@@ -57,11 +57,6 @@ enum TypePageAccueil {
   BORNE
 }
 
-enum EtatJournee {
-  OUVERTE
-  FERMEE
-}
-
 // ---------- Entreprises (tenants) ----------
 
 model Entreprise {
@@ -173,26 +168,11 @@ model Site {
   coursierSites         CoursierSite[]
   terminaux             Terminal[]
   evenements            Evenement[]
-  journees              JourneeSite[]
   utilisateursParDefaut Utilisateur[]  @relation("UtilisateurSiteParDefaut")
   employes              Employe[]
 
   @@index([actif])
   @@index([entrepriseId])
-}
-
-model JourneeSite {
-  id          String     @id @default(uuid())
-  site        Site       @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  siteId      String
-  date        DateTime   @db.Date
-  etat        EtatJournee
-  demarreeLe  DateTime
-  fermeeLe    DateTime?
-  terminalId  String?
-
-  @@unique([siteId, date])
-  @@index([siteId, date])
 }
 
 model Terminal {

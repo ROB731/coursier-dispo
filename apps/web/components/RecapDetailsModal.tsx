@@ -1,7 +1,7 @@
 "use client";
 
 import { CoursierBorne } from "@/lib/types";
-import { formatDepuis, formatLibelleDerniereActivite } from "@/lib/dates";
+import { formatDepuis } from "@/lib/dates";
 import { StatutBadge } from "./StatutBadge";
 import { IconX } from "@/components/icons";
 import { useState } from "react";
@@ -101,9 +101,11 @@ export function RecapDetailsModal({ coursiers, onClose }: { coursiers: CoursierB
                   {c.prenom} {c.nom}
                 </strong>
                 <span style={{ color: "var(--color-text-muted)", marginLeft: "0.4rem", fontSize: "0.85rem" }}>{c.code}</span>
-                <small style={{ display: "block", fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
-                  {c.depuis ? `${formatLibelleDerniereActivite(c.statut, c.journeeTerminee)} ${formatDepuis(c.depuis)}` : `${formatLibelleDerniereActivite(c.statut, c.journeeTerminee)} · heure inconnue`}
-                </small>
+                {c.depuis && (
+                  <small style={{ display: "block", fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
+                    {c.statut === "DISPONIBLE" ? "Entrée" : "Sortie"} {formatDepuis(c.depuis)}
+                  </small>
+                )}
               </div>
               <StatutBadge statut={c.statut} journeeTerminee={c.journeeTerminee} contexte="borne" />
             </div>

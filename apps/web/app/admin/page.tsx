@@ -8,7 +8,7 @@ import { ActiviteModal } from "@/components/ActiviteModal";
 import { useUtilisateur } from "@/lib/useUtilisateur";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { StatutBadge } from "@/components/StatutBadge";
-import { formatDepuis, formatLibelleDerniereActivite } from "@/lib/dates";
+import { formatDepuis } from "@/lib/dates";
 import { lireAfficherStatsGestion } from "@/lib/preferencesTableauDeBord";
 import { IconArrowRight, IconBan, IconCheckCircle, IconRefresh, IconUsers } from "@/components/icons";
 import { useToast } from "@/components/ToastProvider";
@@ -237,8 +237,6 @@ export default function TableauDeBordAdminPage() {
         >
           {statuts.map((s) => {
             const journeeTerminee = s.statut !== "DISPONIBLE" && s.journeeTerminee;
-            const libelleDerniereActivite = formatLibelleDerniereActivite(s.statut, s.journeeTerminee);
-            const valeurDerniereActivite = s.depuis ? `${libelleDerniereActivite} ${formatDepuis(s.depuis)}` : `${libelleDerniereActivite} · heure inconnue`;
             return (
               <div
                 key={s.coursierId}
@@ -281,7 +279,11 @@ export default function TableauDeBordAdminPage() {
                     {s.prenom} {s.nom}
                   </strong>
                   <span style={{ color: "var(--color-text-muted)", fontSize: "0.82rem" }}>{s.code}</span>
-                  <small style={{ display: "block", color: "var(--color-text-muted)", fontSize: "0.78rem" }}>{valeurDerniereActivite}</small>
+                  {s.depuis && (
+                    <small style={{ display: "block", color: "var(--color-text-muted)", fontSize: "0.78rem" }}>
+                      {s.statut === "DISPONIBLE" ? "Entrée" : "Sortie"} {formatDepuis(s.depuis)}
+                    </small>
+                  )}
                 </div>
                 <StatutBadge statut={s.statut} journeeTerminee={s.journeeTerminee} />
               </div>

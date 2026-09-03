@@ -92,9 +92,9 @@ export async function authentifierAppareilBorne(code: string, appareilId: string
 /** Garde-fou appelé avant toute modification d'état d'un coursier à la
  * borne. Ne fait rien si aucun code actif n'existe (fonctionnalité
  * désactivée) — sinon exige que l'appareil appelant soit lié à l'un d'eux. */
-export async function verifierAccesAppareilBorne(appareilId: string | undefined, obligatoire = false) {
+export async function verifierAccesAppareilBorne(appareilId: string | undefined) {
   const codesActifs = await prisma.codeAccesBorne.findMany({ where: { actif: true } });
-  if (codesActifs.length === 0 && !obligatoire) return;
+  if (codesActifs.length === 0) return;
 
   const autorise = appareilId && codesActifs.some((c) => c.appareilId === appareilId);
   if (!autorise) throw new AuthentificationBorneRequiseError();

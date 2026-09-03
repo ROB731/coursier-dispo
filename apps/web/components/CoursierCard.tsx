@@ -1,5 +1,5 @@
 import { CoursierBorne } from "@/lib/types";
-import { formatDepuis, formatLibelleDerniereActivite } from "@/lib/dates";
+import { formatDepuis } from "@/lib/dates";
 import { StatutBadge } from "./StatutBadge";
 import { IconZoom } from "./icons";
 
@@ -14,8 +14,6 @@ export function CoursierCard({
 }) {
   const disponible = coursier.statut === "DISPONIBLE";
   const journeeTerminee = !disponible && coursier.journeeTerminee;
-  const libelleDerniereActivite = formatLibelleDerniereActivite(coursier.statut, coursier.journeeTerminee);
-  const valeurDerniereActivite = coursier.depuis ? `${libelleDerniereActivite} ${formatDepuis(coursier.depuis)}` : `${libelleDerniereActivite} · heure inconnue`;
 
   return (
     <div
@@ -78,7 +76,11 @@ export function CoursierCard({
       <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", textAlign: "center" }}>
         {coursier.prenom} {coursier.nom}
       </span>
-      <small style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{valeurDerniereActivite}</small>
+      {coursier.depuis && (
+        <small style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
+          {coursier.statut === "DISPONIBLE" ? "Entrée" : "Sortie"} {formatDepuis(coursier.depuis)}
+        </small>
+      )}
     </div>
   );
 }
