@@ -30,6 +30,11 @@ export interface CoursierBorne {
   depuis: string | null;
 }
 
+export interface EtatJournee {
+  ouverte: boolean;
+  depuis: string | null;
+}
+
 export interface StatutCoursier {
   coursierId: string;
   code: string;

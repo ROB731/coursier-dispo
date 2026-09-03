@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/apiClient";
-import { CoursierBorne } from "@/lib/types";
+import { CoursierBorne, EtatJournee } from "@/lib/types";
 import { CoursierCard } from "@/components/CoursierCard";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { RecapDetailsModal } from "@/components/RecapDetailsModal";
 import { Toast } from "@/components/Toast";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { IconBan, IconChevronDown, IconDownload, IconLogIn, IconRefresh } from "@/components/icons";
+import { IconArrowRight, IconBan, IconCheckCircle, IconChevronDown, IconDownload, IconLogIn, IconRefresh } from "@/components/icons";
 import { Modal } from "@/components/Modal";
 import { NotificationBellBorne } from "@/components/NotificationBellBorne";
 import { AuthentificationBorneModal } from "@/components/AuthentificationBorneModal";
@@ -55,6 +55,8 @@ export default function BornePage({ params }: { params: { terminalId: string } }
   const [afficherRemonter, setAfficherRemonter] = useState(false);
   const [dernierRafraichissement, setDernierRafraichissement] = useState<Date | null>(null);
   const [actionEnAttente, setActionEnAttente] = useState<(() => Promise<void>) | null>(null);
+  const [etatJournee, setEtatJournee] = useState<EtatJournee | null>(null);
+  const [journeeEnCours, setJourneeEnCours] = useState(false);
   const zoneDefilementRef = useRef<HTMLDivElement>(null);
 
   function surDefilement() {
@@ -102,6 +104,14 @@ export default function BornePage({ params }: { params: { terminalId: string } }
     }
   }, [terminalId]);
 
+  const chargerEtatJournee = useCallback(async () => {
+    try {
+      setEtatJournee(await api.get<EtatJournee>(`/api/bornes/${terminalId}/journee`));
+    } catch {
+      // silencieux — le bouton garde son dernier état connu
+    }
+  }, [terminalId]);
+
   useEffect(() => {
     api.get<{ notificationsBorneActives?: boolean }>("/api/configuration/accueil")
       .then((configuration) => setNotificationsBorneActives(Boolean(configuration.notificationsBorneActives)))
@@ -110,9 +120,10 @@ export default function BornePage({ params }: { params: { terminalId: string } }
 
   useEffect(() => {
     chargerTout();
+    chargerEtatJournee();
     const intervalle = setInterval(chargerTout, INTERVALLE_RAFRAICHISSEMENT_MS);
     return () => clearInterval(intervalle);
-  }, [chargerTout]);
+  }, [chargerTout, chargerEtatJournee]);
 
   useEffect(() => {
     if (!toast) return;
@@ -182,6 +193,27 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       });
     } catch (err) {
       setErreur(err instanceof ApiError ? err.message : "Échec de l'annulation");
+    }
+  }
+
+  async function basculerJournee() {
+    const ouverte = Boolean(etatJournee?.ouverte);
+    const confirmation = ouverte
+      ? "Fermer la journée ? Tous les coursiers encore disponibles seront clôturés."
+      : "Démarrer la journée ? Tous les coursiers disponibles seront basculés en Sortie.";
+    if (!window.confirm(confirmation)) return;
+
+    setJourneeEnCours(true);
+    try {
+      await executerOuDemanderCode(async () => {
+        const chemin = ouverte ? "fermer" : "demarrer";
+        setEtatJournee(await api.post<EtatJournee>(`/api/bornes/${terminalId}/journee/${chemin}`, { appareilId: getAppareilId() }));
+        await chargerTout();
+      });
+    } catch (err) {
+      setErreur(err instanceof ApiError ? err.message : "Échec de l'opération");
+    } finally {
+      setJourneeEnCours(false);
     }
   }
 
@@ -261,6 +293,18 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           >
             <IconRefresh size={17} />
           </button>
+          {etatJournee && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={basculerJournee}
+              disabled={journeeEnCours}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", whiteSpace: "nowrap" }}
+            >
+              {etatJournee.ouverte ? <IconCheckCircle size={15} /> : <IconArrowRight size={15} />}
+              {journeeEnCours ? "Enregistrement…" : etatJournee.ouverte ? "Fermer la journée" : "Démarrer la journée"}
+            </button>
+          )}
           <NotificationBellBorne terminalId={terminalId} notificationsActivesSurCeSite={notificationsBorneActives} />
           <a
             href="/login"
