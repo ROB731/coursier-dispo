@@ -31,7 +31,7 @@ interface Terminal {
 interface CodeBorne {
   id: string;
   nom: string;
-  role: "GARDIEN" | "CONSULTATION";
+  role: "GARDIEN" | "CONSULTATION" | "ADMIN";
   utilisateur: { id: string; nomComplet: string; role: string } | null;
   actif: boolean;
   appareilLie: boolean;
@@ -298,12 +298,13 @@ export default function ParametresPage() {
                       style={{
                         fontSize: "0.72rem",
                         fontWeight: 700,
-                        color: c.role === "GARDIEN" ? "var(--color-primary)" : "var(--color-text-muted)",
+                        color:
+                          c.role === "ADMIN" ? "var(--color-accent)" : c.role === "GARDIEN" ? "var(--color-primary)" : "var(--color-text-muted)",
                         textTransform: "uppercase",
                         letterSpacing: "0.03em",
                       }}
                     >
-                      {c.role === "GARDIEN" ? "Gardien" : "Consultation"}
+                      {c.role === "ADMIN" ? "Accès complet" : c.role === "GARDIEN" ? "Gardien" : "Consultation"}
                     </span>
                     <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
                       {c.actif ? "Actif" : "Désactivé"}
@@ -401,7 +402,7 @@ export default function ParametresPage() {
           <p style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", margin: "0.4rem 0 0" }}>
             {ongletNouveauCode === "GARDIEN"
               ? "Peut changer l'état des coursiers et démarrer/fermer la journée."
-              : "Lecture seule : consulte l'historique d'un coursier, ne peut rien modifier. Le titulaire retrouve son code dans son profil."}
+              : "Lecture seule : consulte l'historique d'un coursier, ne peut rien modifier. Le titulaire retrouve son code dans son profil. Exception : un compte Super Admin reçoit automatiquement l'accès complet (gardien + consultation)."}
           </p>
 
           {erreurCodeBorne && <p className="form-error">{erreurCodeBorne}</p>}

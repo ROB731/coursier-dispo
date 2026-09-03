@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CoursierBorne } from "@/lib/types";
 import { formatDepuis } from "@/lib/dates";
 import { StatutBadge } from "./StatutBadge";
-import { IconArrowRight, IconX } from "@/components/icons";
+import { IconArrowRight, IconClock, IconX } from "@/components/icons";
 
 /** Plus tôt arrivé/parti en premier ; ceux sans aucune activité aujourd'hui
  * (jamais rattachés à un événement) sont relégués en fin de liste. */
@@ -20,10 +20,14 @@ function trierParHeure(coursiers: CoursierBorne[]): CoursierBorne[] {
 export function RecapDetailsModal({
   coursiers,
   onAction,
+  onHistorique,
   onClose,
 }: {
   coursiers: CoursierBorne[];
   onAction: (coursier: CoursierBorne) => void;
+  /** Fourni uniquement pour un appareil en accès complet (ADMIN) : raccourci
+   * direct vers l'historique, en plus du bouton d'action principal. */
+  onHistorique?: (coursier: CoursierBorne) => void;
   onClose: () => void;
 }) {
   const [filtre, setFiltre] = useState<"PRESENTS" | "ABSENTS">("PRESENTS");
@@ -131,24 +135,43 @@ export function RecapDetailsModal({
                 )}
               </div>
               <StatutBadge statut={c.statut} journeeTerminee={c.journeeTerminee} contexte="borne" />
-              <button
-                type="button"
-                className="btn-text"
-                onClick={() => onAction(c)}
-                aria-label={`Ouvrir ${c.prenom} ${c.nom}`}
-                title="Ouvrir"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  padding: "0.4rem",
-                  borderRadius: "999px",
-                  background: "var(--color-primary-soft)",
-                  color: "var(--color-primary)",
-                  flexShrink: 0,
-                }}
-              >
-                <IconArrowRight size={15} />
-              </button>
+              <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
+                {onHistorique && (
+                  <button
+                    type="button"
+                    onClick={() => onHistorique(c)}
+                    aria-label={`Voir l'historique de ${c.prenom} ${c.nom}`}
+                    title="Voir l'historique"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "0.4rem",
+                      borderRadius: "999px",
+                      background: "var(--color-accent)",
+                      color: "var(--color-accent-contrast)",
+                    }}
+                  >
+                    <IconClock size={15} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-text"
+                  onClick={() => onAction(c)}
+                  aria-label={`Ouvrir ${c.prenom} ${c.nom}`}
+                  title="Ouvrir"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "0.4rem",
+                    borderRadius: "999px",
+                    background: "var(--color-primary-soft)",
+                    color: "var(--color-primary)",
+                  }}
+                >
+                  <IconArrowRight size={15} />
+                </button>
+              </div>
             </div>
           ))}
           {coursiersFiltres.length === 0 && (

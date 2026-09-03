@@ -10,6 +10,7 @@ import { ecrireAfficherStatsGestion, lireAfficherStatsGestion } from "@/lib/pref
 
 interface CodeBornePersonnel {
   code: string | null;
+  role: "CONSULTATION" | "ADMIN";
   actif: boolean;
   appareilLie: boolean;
   lieLe: string | null;
@@ -165,8 +166,9 @@ export default function MonProfilPage() {
             ) : (
               <>
                 <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", margin: "0 0 0.75rem" }}>
-                  Donne un accès en lecture seule à l&apos;historique des coursiers depuis une borne — vous ne pouvez pas
-                  changer leur état avec ce code.
+                  {codeBorne.role === "ADMIN"
+                    ? "Accès complet depuis une borne : vous pouvez changer l'état des coursiers, démarrer/fermer la journée et consulter l'historique de chacun."
+                    : "Donne un accès en lecture seule à l'historique des coursiers depuis une borne — vous ne pouvez pas changer leur état avec ce code."}
                 </p>
                 <div
                   style={{
@@ -177,8 +179,8 @@ export default function MonProfilPage() {
                     padding: "0.5rem",
                     marginBottom: "0.6rem",
                     borderRadius: "var(--radius-sm)",
-                    background: "var(--color-primary-soft)",
-                    color: "var(--color-primary)",
+                    background: codeBorne.role === "ADMIN" ? "var(--color-accent)" : "var(--color-primary-soft)",
+                    color: codeBorne.role === "ADMIN" ? "var(--color-accent-contrast)" : "var(--color-primary)",
                   }}
                 >
                   {codeBorne.code}
