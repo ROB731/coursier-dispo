@@ -1,19 +1,35 @@
 "use client";
 
+import { useState } from "react";
 import { CoursierBorne } from "@/lib/types";
 import { formatDepuis } from "@/lib/dates";
 import { StatutBadge } from "./StatutBadge";
-import { IconX } from "@/components/icons";
-import { useState } from "react";
+import { IconArrowRight, IconX } from "@/components/icons";
 
-export function RecapDetailsModal({ coursiers, onClose }: { coursiers: CoursierBorne[]; onClose: () => void }) {
+/** Plus tôt arrivé/parti en premier ; ceux sans aucune activité aujourd'hui
+ * (jamais rattachés à un événement) sont relégués en fin de liste. */
+function trierParHeure(coursiers: CoursierBorne[]): CoursierBorne[] {
+  return [...coursiers].sort((a, b) => {
+    if (!a.depuis && !b.depuis) return a.code.localeCompare(b.code);
+    if (!a.depuis) return 1;
+    if (!b.depuis) return -1;
+    return new Date(a.depuis).getTime() - new Date(b.depuis).getTime();
+  });
+}
+
+export function RecapDetailsModal({
+  coursiers,
+  onAction,
+  onClose,
+}: {
+  coursiers: CoursierBorne[];
+  onAction: (coursier: CoursierBorne) => void;
+  onClose: () => void;
+}) {
   const [filtre, setFiltre] = useState<"PRESENTS" | "ABSENTS">("PRESENTS");
   const presents = coursiers.filter((c) => c.statut === "DISPONIBLE");
   const absents = coursiers.filter((c) => c.statut !== "DISPONIBLE");
-  const coursiersFiltres = (filtre === "PRESENTS" ? presents : absents).sort((a, b) => {
-    if (a.statut === b.statut) return a.code.localeCompare(b.code);
-    return a.statut === "DISPONIBLE" ? -1 : 1;
-  });
+  const coursiersFiltres = trierParHeure(filtre === "PRESENTS" ? presents : absents);
 
   return (
     <div
@@ -96,18 +112,43 @@ export function RecapDetailsModal({ coursiers, onClose }: { coursiers: CoursierB
                 alt=""
                 style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", background: "var(--color-border)" }}
               />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ fontSize: "0.9rem" }}>
                   {c.prenom} {c.nom}
                 </strong>
                 <span style={{ color: "var(--color-text-muted)", marginLeft: "0.4rem", fontSize: "0.85rem" }}>{c.code}</span>
                 {c.depuis && (
-                  <small style={{ display: "block", fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
+                  <small
+                    style={{
+                      display: "block",
+                      fontSize: "0.78rem",
+                      fontWeight: 600,
+                      color: c.statut === "DISPONIBLE" ? "var(--color-disponible)" : "var(--color-non-disponible)",
+                    }}
+                  >
                     {c.statut === "DISPONIBLE" ? "Entrée" : "Sortie"} {formatDepuis(c.depuis)}
                   </small>
                 )}
               </div>
               <StatutBadge statut={c.statut} journeeTerminee={c.journeeTerminee} contexte="borne" />
+              <button
+                type="button"
+                className="btn-text"
+                onClick={() => onAction(c)}
+                aria-label={`Ouvrir ${c.prenom} ${c.nom}`}
+                title="Ouvrir"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "0.4rem",
+                  borderRadius: "999px",
+                  background: "var(--color-primary-soft)",
+                  color: "var(--color-primary)",
+                  flexShrink: 0,
+                }}
+              >
+                <IconArrowRight size={15} />
+              </button>
             </div>
           ))}
           {coursiersFiltres.length === 0 && (

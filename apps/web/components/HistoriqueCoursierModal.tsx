@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/apiClient";
-import { CoursierBorne, HistoriqueCoursierJour } from "@/lib/types";
+import { CoursierBorne, EvenementHistorique, HistoriqueCoursierJour } from "@/lib/types";
 import { Modal } from "@/components/Modal";
-import { IconArrowLeft, IconArrowRight } from "@/components/icons";
+import { IconArrowLeft, IconArrowRight, IconRefresh } from "@/components/icons";
 
 const LIBELLE_TYPE: Record<string, string> = {
   ENTREE: "Entrée",
@@ -12,6 +12,21 @@ const LIBELLE_TYPE: Record<string, string> = {
   ANNULATION: "Annulation",
   CLOTURE_AUTO: "Clôture auto.",
 };
+
+// Vert pour une arrivée, rouge pour un départ (clôture comprise, elle aussi
+// une forme de départ) — une annulation reste neutre, ce n'est pas un état
+// de présence mais une correction.
+function couleurType(type: EvenementHistorique["type"]): string {
+  if (type === "ENTREE") return "var(--color-disponible)";
+  if (type === "ANNULATION") return "var(--color-text-muted)";
+  return "var(--color-non-disponible)";
+}
+
+function fondType(type: EvenementHistorique["type"]): string {
+  if (type === "ENTREE") return "var(--color-disponible-bg)";
+  if (type === "ANNULATION") return "var(--color-border)";
+  return "var(--color-non-disponible-bg)";
+}
 
 function formatDateISO(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -108,9 +123,40 @@ export function HistoriqueCoursierModal({
             <div
               key={e.id}
               className="card"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0.8rem" }}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "0.6rem 0.8rem",
+                borderLeft: `3px solid ${couleurType(e.type)}`,
+              }}
             >
-              <span>{LIBELLE_TYPE[e.type] ?? e.type}</span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  fontWeight: 700,
+                  color: couleurType(e.type),
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "1.5rem",
+                    height: "1.5rem",
+                    borderRadius: "50%",
+                    background: fondType(e.type),
+                    fontSize: "0.7rem",
+                  }}
+                >
+                  {e.type === "ANNULATION" ? <IconRefresh size={11} /> : <span aria-hidden="true">{e.type === "ENTREE" ? "●" : "○"}</span>}
+                </span>
+                {LIBELLE_TYPE[e.type] ?? e.type}
+              </span>
               <span style={{ color: "var(--color-text-muted)" }}>
                 {new Date(e.horodatage).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
               </span>
