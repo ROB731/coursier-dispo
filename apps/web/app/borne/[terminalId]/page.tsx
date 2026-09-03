@@ -443,7 +443,16 @@ export default function BornePage({ params }: { params: { terminalId: string } }
 
       {toast && <Toast message={toast.message} onUndo={toast.evenementId ? annulerDerniereAction : undefined} />}
 
-      {detailsOuvert && <RecapDetailsModal coursiers={coursiers} onClose={() => setDetailsOuvert(false)} />}
+      {detailsOuvert && (
+        <RecapDetailsModal
+          coursiers={coursiers}
+          onAction={(c) => {
+            setDetailsOuvert(false);
+            surClicCoursier(c);
+          }}
+          onClose={() => setDetailsOuvert(false)}
+        />
+      )}
 
       {authModalOuvert && (
         <AuthentificationBorneModal
@@ -475,7 +484,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           message={
             etatJournee?.ouverte
               ? "Tous les coursiers encore disponibles seront clôturés."
-              : "Tous les coursiers disponibles seront basculés en Sortie."
+              : "Tous les coursiers seront basculés en Sortie, qu'ils aient badgé leur entrée ou non."
           }
           libelleConfirmer={etatJournee?.ouverte ? "Fermer" : "Démarrer"}
           enCours={journeeEnCours}

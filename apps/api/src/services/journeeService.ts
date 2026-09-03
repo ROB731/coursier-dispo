@@ -10,13 +10,14 @@ export async function getEtatJourneeSite(siteId: string) {
 }
 
 /**
- * Bascule d'un coup tous les coursiers disponibles du site en Sortie —
- * l'équipe part en tournée, plutôt que chacun tape individuellement en
- * quittant. Ne crée aucun événement pour ceux déjà non disponibles.
+ * Bascule d'un coup TOUS les coursiers actifs du site en Sortie, horodatée
+ * à l'instant du clic — que chacun ait déjà tapé son Entrée ou non. Le
+ * gardien n'a pas à attendre que tout le monde ait badgé individuellement :
+ * un seul clic vaut pour toute l'équipe qui part en tournée.
  */
 export async function demarrerJourneeSite(siteId: string, terminalId: string) {
   const statuts = await getStatutsSite(siteId);
-  const disponibles = statuts.filter((s) => s.statut === "DISPONIBLE");
+  const yAvaitDesDisponibles = statuts.some((s) => s.statut === "DISPONIBLE");
   const maintenant = new Date();
 
   // Transaction : créer les événements en masse puis marquer le site ouvert
@@ -25,10 +26,10 @@ export async function demarrerJourneeSite(siteId: string, terminalId: string) {
   // les sorties au prochain clic. createMany avec un tableau vide est évité
   // explicitement plutôt que de compter sur un comportement Prisma non garanti.
   await prisma.$transaction([
-    ...(disponibles.length > 0
+    ...(statuts.length > 0
       ? [
           prisma.evenement.createMany({
-            data: disponibles.map((s) => ({
+            data: statuts.map((s) => ({
               coursierId: s.coursierId,
               siteId,
               type: "SORTIE" as const,
@@ -42,10 +43,9 @@ export async function demarrerJourneeSite(siteId: string, terminalId: string) {
     prisma.site.update({ where: { id: siteId }, data: { journeeOuverteDepuis: maintenant } }),
   ]);
 
-  // Notification (I/O externe) hors transaction — tout le site vient de
-  // basculer non disponible d'un coup (les autres l'étaient déjà), pas
-  // besoin de revérifier, c'est nécessairement vrai si disponibles.length > 0.
-  if (disponibles.length > 0) await creerNotificationAucunDisponible(siteId);
+  // Notification (I/O externe) hors transaction — seulement si ça change
+  // réellement quelque chose (au moins un coursier était disponible avant).
+  if (yAvaitDesDisponibles) await creerNotificationAucunDisponible(siteId);
 
   return getEtatJourneeSite(siteId);
 }
