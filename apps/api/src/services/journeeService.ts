@@ -51,21 +51,23 @@ export async function demarrerJourneeSite(siteId: string, terminalId: string) {
 }
 
 /**
- * Équivalent manuel du job de clôture automatique (jobs/clotureAutomatique) :
- * clôture immédiatement tous les coursiers encore disponibles du site, sans
- * attendre la fin de plage horaire individuelle de chacun — décision
- * humaine explicite ("tout le monde est rentré"), pas une règle horaire.
+ * Bascule d'un coup TOUS les coursiers actifs du site en Clôture, horodatée
+ * à l'instant du clic — symétrique de demarrerJourneeSite. Comme pour
+ * Démarrer, le gardien n'a pas à se soucier de qui est encore disponible ou
+ * non : un seul clic vaut pour toute l'équipe affichée à la borne, et
+ * rafraîchit au passage l'horodatage affiché sur chaque carte à l'heure
+ * réelle de la fermeture plutôt que de laisser certaines cartes bloquées sur
+ * un ancien événement (ex. la clôture automatique de la veille).
  */
 export async function fermerJourneeSite(siteId: string) {
   const statuts = await getStatutsSite(siteId);
-  const disponibles = statuts.filter((s) => s.statut === "DISPONIBLE");
   const maintenant = new Date();
 
   await prisma.$transaction([
-    ...(disponibles.length > 0
+    ...(statuts.length > 0
       ? [
           prisma.evenement.createMany({
-            data: disponibles.map((s) => ({
+            data: statuts.map((s) => ({
               coursierId: s.coursierId,
               siteId,
               type: "CLOTURE_AUTO" as const,
