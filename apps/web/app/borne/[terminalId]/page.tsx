@@ -512,7 +512,7 @@ export default function BornePage({ params }: { params: { terminalId: string } }
           titre={etatJournee?.ouverte ? "Fermer la journée" : "Démarrer la journée"}
           message={
             etatJournee?.ouverte
-              ? "Tous les coursiers encore disponibles seront clôturés."
+              ? "Tous les coursiers affichés à la borne seront clôturés, qu'ils soient encore disponibles ou non."
               : "Tous les coursiers seront basculés en Sortie, qu'ils aient badgé leur entrée ou non."
           }
           libelleConfirmer={etatJournee?.ouverte ? "Fermer" : "Démarrer"}
