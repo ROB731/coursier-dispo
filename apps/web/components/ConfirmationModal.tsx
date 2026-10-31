@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { CoursierBorne } from "@/lib/types";
-import { IconArrowRight } from "@/components/icons";
 
 type TypeAction = "ENTREE" | "SORTIE";
 
@@ -17,11 +15,11 @@ export function ConfirmationModal({
   onConfirm: (type: TypeAction) => void;
   onClose: () => void;
 }) {
-  const suggestion: TypeAction = coursier.statut === "DISPONIBLE" ? "SORTIE" : "ENTREE";
-  const autre: TypeAction = suggestion === "SORTIE" ? "ENTREE" : "SORTIE";
-  const [typeChoisi, setTypeChoisi] = useState<TypeAction>(suggestion);
+  // Alternance stricte : après une entrée, seule une sortie est possible
+  // (et inversement) — pas de choix à faire pour le gardien.
+  const typeAction: TypeAction = coursier.statut === "DISPONIBLE" ? "SORTIE" : "ENTREE";
 
-  const estEntree = typeChoisi === "ENTREE";
+  const estEntree = typeAction === "ENTREE";
 
   return (
     <div
@@ -64,23 +62,13 @@ export function ConfirmationModal({
           className={`btn ${estEntree ? "btn-etat-entree" : "btn-etat-sortie"}`}
           style={{ width: "100%", marginBottom: "0.75rem" }}
           disabled={enCours}
-          onClick={() => onConfirm(typeChoisi)}
+          onClick={() => onConfirm(typeAction)}
         >
           <span aria-hidden="true">{estEntree ? "●" : "○"}</span>
           {enCours ? "Enregistrement…" : `Confirmer la ${estEntree ? "ENTRÉE" : "SORTIE"}`}
         </button>
 
-        <button
-          type="button"
-          className="btn-text"
-          disabled={enCours}
-          onClick={() => setTypeChoisi(autre)}
-          style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
-        >
-          Ce n&apos;est pas ça <IconArrowRight size={14} /> {autre === "ENTREE" ? "Entrée" : "Sortie"}
-        </button>
-
-        <div style={{ marginTop: "1rem" }}>
+        <div style={{ marginTop: "0.25rem" }}>
           <button type="button" className="btn-text" disabled={enCours} onClick={onClose}>
             Annuler
           </button>

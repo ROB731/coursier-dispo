@@ -2,7 +2,7 @@ import { SourceEvenement, TypeEvenement } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../lib/errors";
 import { creerNotificationCoursierArrive, creerNotificationAucunDisponible } from "./notificationService";
-import { getStatutsSite } from "./statutService";
+import { calculerStatut, getStatutsSite } from "./statutService";
 import { entrepriseAccessible } from "./perimetreService";
 
 async function getParametresPourSite(siteId: string) {
@@ -27,6 +27,18 @@ export async function creerEvenementBorne({ coursierId, type, terminalId }: Cree
     where: { coursierId, siteId: terminal.siteId, actif: true },
   });
   if (!rattachement) throw new ValidationError("Ce coursier n'est pas rattaché au site de cette borne");
+
+  // Alternance stricte, sur le statut affiché au gardien : une entrée n'est
+  // possible que si le coursier n'est pas déjà disponible, une sortie que
+  // s'il l'est. Évite les doubles entrées / doubles sorties (double clic,
+  // tablette pas à jour, mauvais choix dans la fenêtre de confirmation).
+  const statutActuel = await calculerStatut(coursierId);
+  if (type === "ENTREE" && statutActuel === "DISPONIBLE") {
+    throw new ConflictError("Ce coursier est déjà enregistré comme présent — une sortie est attendue");
+  }
+  if (type === "SORTIE" && statutActuel !== "DISPONIBLE") {
+    throw new ConflictError("Ce coursier est déjà enregistré comme sorti — une entrée est attendue");
+  }
 
   const evenement = await prisma.evenement.create({
     data: {
