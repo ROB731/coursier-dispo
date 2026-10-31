@@ -198,6 +198,12 @@ export default function BornePage({ params }: { params: { terminalId: string } }
       });
     } catch (err) {
       setErreur(err instanceof ApiError ? err.message : "Échec de l'enregistrement");
+      // Conflit d'alternance : la tablette n'était pas à jour, on ferme la
+      // fenêtre et on recharge pour afficher l'état réel du coursier.
+      if (err instanceof ApiError && err.status === 409) {
+        setSelectionCoursier(null);
+        await chargerTout();
+      }
     } finally {
       setEnCours(false);
     }
